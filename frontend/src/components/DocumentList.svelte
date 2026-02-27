@@ -11,23 +11,24 @@
     selectDocument,
     autoSaveIfDirty,
     renameDocument,
+    renameDocumentById,
     moveDocumentToFolder,
     loadDocuments,
-  } from '../stores/documentStore';
+  } from '$store/documentStore';
   import {
     folders,
     createFolder,
     renameFolder,
     deleteFolder,
     loadFolders,
-  } from '../stores/folderStore';
+  } from '$store/folderStore';
   import {
     setContent,
     setPrinterSettings,
     resetEditor,
     editorContent,
     printerSettings,
-  } from '../stores/editorStore';
+  } from '$store/editorStore';
   import type { Folder, ReceiptDocument } from '$types/index';
   // ── Search ───────────────────────────────────────────────────────────────────
   let searchQuery = $state('');
@@ -179,17 +180,20 @@
     modalMode = null;
     modalTarget = null;
 
-    if (mode === 'doc-rename' && target !== null) {
-      if ($currentDocument?.id === target) {
-        await renameDocument(name);
-      } else {
-        selectDocument(target);
-        await renameDocument(name);
+    try {
+      if (mode === 'doc-rename' && target !== null) {
+        if ($currentDocument?.id === target) {
+          await renameDocument(name);
+        } else {
+          await renameDocumentById(target, name);
+        }
+      } else if (mode === 'folder-create') {
+        await createFolder(name);
+      } else if (mode === 'folder-rename' && target !== null) {
+        await renameFolder(target, name);
       }
-    } else if (mode === 'folder-create') {
-      await createFolder(name);
-    } else if (mode === 'folder-rename' && target !== null) {
-      await renameFolder(target, name);
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('[DocumentList] handleModalConfirm:', err);
     }
   }
 
@@ -205,14 +209,18 @@
     deleteTarget = null;
     if (target === null) return;
 
-    if (target.kind === 'doc') {
-      const wasOpen = $currentDocument?.id === target.doc.id;
-      await deleteDocument(target.doc.id);
-      if (wasOpen) resetEditor();
-    } else {
-      await deleteFolder(target.folder.id);
-      await loadDocuments();
-      await loadFolders();
+    try {
+      if (target.kind === 'doc') {
+        const wasOpen = $currentDocument?.id === target.doc.id;
+        await deleteDocument(target.doc.id);
+        if (wasOpen) resetEditor();
+      } else {
+        await deleteFolder(target.folder.id);
+        await loadDocuments();
+        await loadFolders();
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('[DocumentList] handleDeleteConfirm:', err);
     }
   }
 
@@ -518,7 +526,7 @@
 {/if}
 
 <!-- "Move to" submenu — also fixed-position -->
-{#if openMenu?.doc !== null && openMoveSubmenu && submenuPos !== null}
+{#if openMenu !== null && openMenu.doc !== null && openMoveSubmenu && submenuPos !== null}
   {@const doc = openMenu.doc}
   <ul
     class="kebab-menu kebab-submenu-panel"

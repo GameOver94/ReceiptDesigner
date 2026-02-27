@@ -25,12 +25,9 @@
 
   // Determine the currently selected preset from CPL value.
   // $derived recomputes whenever $printerSettings.cpl changes.
-  let selectedPreset = $derived((): PresetKey => {
-    const cpl = $printerSettings.cpl;
-    if (cpl === 32) return '58mm';
-    if (cpl === 48) return '80mm';
-    return 'custom';
-  });
+  let selectedPreset: PresetKey = $derived(
+    $printerSettings.cpl === 32 ? '58mm' : $printerSettings.cpl === 48 ? '80mm' : 'custom',
+  );
 
   function handlePresetChange(preset: PresetKey): void {
     const presetValue = PAPER_PRESETS[preset];
@@ -40,6 +37,7 @@
   }
 
   function handleCplChange(event: Event): void {
+    // event.target is the <input type="number"> that fired this onchange handler.
     const input = event.target as HTMLInputElement;
     const value = parseInt(input.value, 10);
     if (!isNaN(value) && value >= 24 && value <= 96) {
@@ -48,21 +46,25 @@
   }
 
   function handleCommandChange(event: Event): void {
+    // event.target is the <select> for command set bound to this onchange handler.
     const select = event.target as HTMLSelectElement;
     updatePrinterSettings({ command: select.value });
   }
 
   function handleLanguageChange(event: Event): void {
+    // event.target is the <select> for language/encoding bound to this onchange handler.
     const select = event.target as HTMLSelectElement;
     updatePrinterSettings({ language: select.value });
   }
 
   function handleSpacingChange(event: Event): void {
+    // event.target is the <input type="checkbox"> for spacing bound to this onchange handler.
     const checkbox = event.target as HTMLInputElement;
     updatePrinterSettings({ spacing: checkbox.checked });
   }
 
   function handleCuttingChange(event: Event): void {
+    // event.target is the <input type="checkbox"> for cutting bound to this onchange handler.
     const checkbox = event.target as HTMLInputElement;
     updatePrinterSettings({ cutting: checkbox.checked });
   }
@@ -88,9 +90,9 @@
         {#each Object.entries(PAPER_PRESETS) as [key, preset]}
           <button
             class="preset-btn"
-            class:is-active={selectedPreset() === key}
+            class:is-active={selectedPreset === key}
             onclick={() => handlePresetChange(key as PresetKey)}
-            aria-pressed={selectedPreset() === key}
+            aria-pressed={selectedPreset === key}
           >
             {preset.label}
           </button>

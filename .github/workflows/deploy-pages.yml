@@ -16,7 +16,7 @@ jobs:
   # (The CI workflow only runs on branches; tags do not trigger it.)
   # ------------------------------------------------------------------
   ci:
-    name: Frontend — lint, typecheck, build
+    name: Frontend — lint, typecheck, test, build
     runs-on: ubuntu-latest
 
     defaults:
@@ -47,6 +47,9 @@ jobs:
 
       - name: Type-check
         run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test --run
 
       - name: Build
         run: pnpm build

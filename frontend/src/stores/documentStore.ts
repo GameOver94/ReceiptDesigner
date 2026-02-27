@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { getAdapter } from './adapterStore';
 import { DEFAULT_PRINTER_SETTINGS } from '$types/index';
 import type { ReceiptDocument, PrinterSettings } from '$types/index';
@@ -180,10 +180,7 @@ export async function saveCurrentDocument(
 ): Promise<void> {
   _error.set(null);
 
-  let currentId: string | null = null;
-  _currentId.subscribe((id) => {
-    currentId = id;
-  })(); // Immediately unsubscribe — we just need the current value
+  const currentId = get(_currentId);
 
   if (currentId === null) {
     _error.set('No document is currently open');
@@ -245,6 +242,25 @@ export async function renameDocument(newName: string): Promise<void> {
 }
 
 /**
+ * Rename any document by ID without changing the active selection.
+ * Use this when renaming a document that is not currently open, so the
+ * editor/selection state is not disturbed as a side-effect.
+ */
+export async function renameDocumentById(id: string, newName: string): Promise<void> {
+  _error.set(null);
+  try {
+    const adapter = getAdapter();
+    const updated = await adapter.updateDocument(id, { name: newName });
+    _documents.update((docs) => docs.map((d) => (d.id === id ? updated : d)));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to rename document';
+    _error.set(message);
+    if (import.meta.env.DEV) console.error('[documentStore] renameDocumentById:', err);
+    throw err;
+  }
+}
+
+/**
  * Auto-save the current document with the latest editor content + printer settings
  * if there are unsaved changes. Silently does nothing when in scratch mode, when
  * nothing is dirty, or when no document is open.
@@ -253,18 +269,9 @@ export async function autoSaveIfDirty(
   content: string,
   printerSettings: PrinterSettings,
 ): Promise<void> {
-  let dirty = false;
-  let id: string | null = null;
-  let scratch = false;
-  _isDirty.subscribe((v) => {
-    dirty = v;
-  })();
-  _currentId.subscribe((v) => {
-    id = v;
-  })();
-  _isScratch.subscribe((v) => {
-    scratch = v;
-  })();
+  const dirty = get(_isDirty);
+  const id = get(_currentId);
+  const scratch = get(_isScratch);
   // Skip auto-save in scratch mode — user must explicitly name and save first
   if (!dirty || id === null || scratch) return;
   await saveCurrentDocument({ content, printerSettings });
@@ -279,10 +286,7 @@ export async function autoSaveIfDirty(
 export async function moveDocumentToFolder(docId: string, folderId: string | null): Promise<void> {
   _error.set(null);
 
-  let currentId: string | null = null;
-  _currentId.subscribe((id) => {
-    currentId = id;
-  })();
+  const currentId = get(_currentId);
 
   try {
     const adapter = getAdapter();

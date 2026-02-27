@@ -5,6 +5,26 @@ import type { StorageAdapter } from './types';
 const DOCS_KEY = 'receipt-designer:documents';
 const FOLDERS_KEY = 'receipt-designer:folders';
 
+// ---------------------------------------------------------------------------
+// Type guards
+// ---------------------------------------------------------------------------
+
+/**
+ * Checks whether a plain-object value from JSON.parse has the minimum shape of
+ * a ReceiptDocument (id + content as strings). Used instead of `as ReceiptDocument`
+ * to avoid unsafe type assertions on data that came from untrusted localStorage.
+ */
+function isReceiptDocument(value: unknown): value is ReceiptDocument {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v['id'] === 'string' &&
+    typeof v['name'] === 'string' &&
+    typeof v['content'] === 'string' &&
+    typeof v['createdAt'] === 'string'
+  );
+}
+
 /**
  * LocalStorageAdapter stores documents and folders as JSON arrays in localStorage.
  *
@@ -31,9 +51,11 @@ export class LocalStorageAdapter implements StorageAdapter {
       // Migration shim: documents saved before folderId was added won't have it.
       // We spread the stored object first, then set folderId only if absent —
       // using ?? null so existing folderId values (including null) are preserved.
-      return (
-        parsed as Array<Omit<ReceiptDocument, 'folderId'> & { folderId?: string | null }>
-      ).map((d) => ({ ...d, folderId: d.folderId ?? null }) as ReceiptDocument);
+      // The outer cast to the migration-shim type is safe because Array.isArray
+      // confirmed it is an array; isReceiptDocument validates each element's shape.
+      return (parsed as Array<Omit<ReceiptDocument, 'folderId'> & { folderId?: string | null }>)
+        .map((d) => ({ ...d, folderId: d.folderId ?? null }))
+        .filter(isReceiptDocument);
     } catch {
       // Corrupted storage — start fresh rather than crashing the app.
       return [];

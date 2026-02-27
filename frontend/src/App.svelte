@@ -9,7 +9,7 @@
   import { loadDocuments, selectDocument, openScratch, documents } from './stores/documentStore';
   import { loadFolders } from './stores/folderStore';
   import { setContent, setPrinterSettings } from './stores/editorStore';
-  import type { ReceiptDocument } from './types/index';
+  import { get } from 'svelte/store';
 
   // $state() tracks whether the initial document load has completed.
   // Used to show a loading indicator before the document list is ready.
@@ -29,18 +29,16 @@
         // After loading, pick up where the user left off:
         // - If saved documents exist, select the most recent one and load it.
         // - If nothing is saved yet, open a blank scratch buffer.
-        let docs: ReceiptDocument[] = [];
-        documents.subscribe((d) => {
-          docs = d;
-        })();
+        const docs = get(documents);
 
         if (docs.length > 0) {
           // Select the last document (most recently created) and populate the editor.
-          // The length check above guarantees docs[docs.length - 1] is defined.
-          const last = docs[docs.length - 1] as (typeof docs)[number];
-          selectDocument(last.id);
-          setContent(last.content);
-          setPrinterSettings(last.printerSettings);
+          const last = docs.at(-1);
+          if (last !== undefined) {
+            selectDocument(last.id);
+            setContent(last.content);
+            setPrinterSettings(last.printerSettings);
+          }
         } else {
           openScratch();
         }

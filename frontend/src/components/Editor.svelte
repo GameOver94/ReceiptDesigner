@@ -1,71 +1,12 @@
 <script lang="ts">
-  import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
-  // EditorView.lineWrapping is a built-in extension — no extra package needed.
+  import { EditorView } from '@codemirror/view';
   import { EditorState } from '@codemirror/state';
-  import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-  import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
-  import { receiptLineSyntax } from '$lib/codemirror/receiptLineSyntax';
-  import { placeholderHighlight } from '$lib/codemirror/placeholderHighlight';
-  import { editorContent, setContent } from '$store/editorStore';
-  import { markDirty } from '$store/documentStore';
+  import { editorExtensions } from '$lib/codemirror/editorSetup';
+  import { editorContent } from '$store/editorStore';
 
   // The CodeMirror EditorView instance — not reactive state, just a reference
   // We keep it in a regular `let` because we don't need Svelte to track it.
   let view: EditorView | null = null;
-
-  /**
-   * The full extension list, extracted so that EditorState.create can be called
-   * both on initial mount and when replacing state for a new document (which also
-   * resets the undo/redo history stack).
-   */
-  const editorExtensions = [
-    // Line numbers in the gutter — useful for debugging ReceiptLine syntax
-    lineNumbers(),
-    highlightActiveLineGutter(),
-
-    // Undo/redo history — users expect Ctrl+Z to work in a text editor
-    history(),
-    keymap.of([...defaultKeymap, ...historyKeymap]),
-
-    // ReceiptLine syntax highlighting (pipes, properties, separators)
-    receiptLineSyntax,
-    syntaxHighlighting(defaultHighlightStyle),
-
-    // Placeholder tag highlighting — marks {{...}} regions amber
-    placeholderHighlight,
-
-    // Wrap long lines so the user never has to scroll horizontally
-    EditorView.lineWrapping,
-
-    // Listen for document changes and sync to editorStore
-    EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        const newContent = update.state.doc.toString();
-        // setContent updates the store so the Preview component re-renders.
-        // setState (used in the $effect below) bypasses the update listener, so
-        // this callback only fires for genuine user-initiated keystrokes — there
-        // is no risk of calling markDirty() when loading a different document.
-        setContent(newContent);
-        markDirty();
-      }
-    }),
-
-    // Base editor theme — minimal styling; most visual styling comes from tokens.css
-    EditorView.theme({
-      '&': {
-        height: '100%',
-        fontSize: '14px',
-        fontFamily: 'var(--rd-font-mono)',
-      },
-      '.cm-scroller': {
-        overflow: 'auto',
-        fontFamily: 'var(--rd-font-mono)',
-      },
-      '.cm-content': {
-        caretColor: 'var(--rd-color-text-primary)',
-      },
-    }),
-  ];
 
   /**
    * Svelte action: initialise CodeMirror on a DOM element.

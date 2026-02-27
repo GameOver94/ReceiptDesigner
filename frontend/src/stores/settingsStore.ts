@@ -23,6 +23,19 @@ const DEFAULT_SETTINGS: AppSettings = {
   defaultPrinterSettings: DEFAULT_PRINTER_SETTINGS,
 };
 
+/**
+ * Type guard that checks whether an unknown plain-object value has at least one
+ * valid AppSettings key. Used instead of `as Partial<AppSettings>` to avoid unsafe
+ * type assertions on data read back from localStorage.
+ *
+ * We only check the keys we actually use; any extra keys are ignored by the spread.
+ */
+function isPartialAppSettings(value: Record<string, unknown>): value is Partial<AppSettings> {
+  if ('theme' in value && value['theme'] !== 'light' && value['theme'] !== 'dark') return false;
+  if ('fontSize' in value && typeof value['fontSize'] !== 'number') return false;
+  return true;
+}
+
 function loadPersistedSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -33,9 +46,11 @@ function loadPersistedSettings(): AppSettings {
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       return DEFAULT_SETTINGS;
     }
+    const obj = parsed as Record<string, unknown>;
+    if (!isPartialAppSettings(obj)) return DEFAULT_SETTINGS;
     // Merge with defaults so new settings keys added in future releases
     // get their default values without requiring a manual migration.
-    return { ...DEFAULT_SETTINGS, ...(parsed as Partial<AppSettings>) };
+    return { ...DEFAULT_SETTINGS, ...obj };
   } catch {
     return DEFAULT_SETTINGS;
   }

@@ -2,25 +2,9 @@
   import Button from './common/Button.svelte';
   import NameModal from './common/NameModal.svelte';
   import DeleteModal from './common/DeleteModal.svelte';
-  import {
-    currentDocument,
-    isDirty,
-    isScratch,
-    saveAsScratch,
-    saveCurrentDocument,
-    renameDocument,
-    deleteDocument,
-    autoSaveIfDirty,
-    openScratch,
-    clearDirty,
-  } from '../stores/documentStore';
-  import {
-    editorContent,
-    printerSettings,
-    resetEditor,
-    setContent,
-    setPrinterSettings,
-  } from '../stores/editorStore';
+  import { currentDocument, isDirty, isScratch, clearDirty } from '$store/documentStore';
+  import { editorContent, printerSettings } from '$store/editorStore';
+  import { doNew, doSaveAs, doRename, doSave, doDelete, doRevert } from '$lib/topBarActions';
 
   let isSaving = $state(false);
   let errorMessage = $state<string | null>(null);
@@ -45,14 +29,10 @@
   // Whether the center label should be interactive (opens rename)
   let canRename = $derived(hasDocument && !isInScratch);
 
-  // Open the "New" flow: auto-save if dirty, then enter scratch mode
   async function handleNew(): Promise<void> {
-    await autoSaveIfDirty($editorContent, $printerSettings);
-    openScratch();
-    resetEditor();
+    await doNew($editorContent, $printerSettings);
   }
 
-  // Open the rename modal pre-filled with the current document name
   function handleRename(): void {
     if (!canRename) return;
     modalInitialValue = $currentDocument?.name ?? '';
@@ -67,7 +47,7 @@
     if (mode === 'save-as') {
       isSaving = true;
       try {
-        await saveAsScratch(name, $editorContent, $printerSettings);
+        await doSaveAs(name, $editorContent, $printerSettings);
       } catch (err) {
         errorMessage = err instanceof Error ? err.message : 'Failed to save document';
         if (import.meta.env.DEV) console.error('[TopBar] save-as error:', err);
@@ -77,7 +57,7 @@
     } else if (mode === 'rename') {
       isSaving = true;
       try {
-        await renameDocument(name);
+        await doRename(name);
       } catch (err) {
         errorMessage = err instanceof Error ? err.message : 'Rename failed';
         if (import.meta.env.DEV) console.error('[TopBar] rename error:', err);
@@ -104,10 +84,7 @@
     if (!hasDocument) return;
     isSaving = true;
     try {
-      await saveCurrentDocument({
-        content: $editorContent,
-        printerSettings: $printerSettings,
-      });
+      await doSave($editorContent, $printerSettings);
     } catch (err) {
       errorMessage = err instanceof Error ? err.message : 'Save failed';
       if (import.meta.env.DEV) console.error('[TopBar] save error:', err);
@@ -116,7 +93,7 @@
     }
   }
 
-  async function handleDelete(): Promise<void> {
+  function handleDelete(): void {
     if (!hasDocument || $currentDocument === null) return;
     showDeleteModal = true;
   }
@@ -125,8 +102,7 @@
     if ($currentDocument === null) return;
     showDeleteModal = false;
     errorMessage = null;
-    await deleteDocument($currentDocument.id);
-    resetEditor();
+    await doDelete($currentDocument.id);
   }
 
   function handleDeleteCancel(): void {
@@ -141,8 +117,7 @@
    */
   function handleDiscard(): void {
     if ($currentDocument === null) return;
-    setContent($currentDocument.content);
-    setPrinterSettings($currentDocument.printerSettings);
+    doRevert($currentDocument.content, $currentDocument.printerSettings);
     clearDirty();
   }
 </script>
@@ -233,9 +208,7 @@
     {/if}
     <Button
       variant="ghost"
-      onclick={() => {
-        void handleDelete();
-      }}
+      onclick={handleDelete}
       isDisabled={!hasDocument}
       ariaLabel="Delete document"
     >

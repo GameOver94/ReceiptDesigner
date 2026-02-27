@@ -3,6 +3,9 @@
   import { editorContent, printerSettings } from '$store/editorStore';
   import { currentDocument, autoSaveIfDirty } from '$store/documentStore';
 
+  // Delay before revoking a blob object URL — long enough for the download to start.
+  const REVOKE_OBJECT_URL_DELAY_MS = 1000;
+
   let isExportingSvg = $state(false);
   let isExportingPng = $state(false);
   let errorMessage = $state<string | null>(null);
@@ -21,7 +24,7 @@
     a.click();
     // Revoke the object URL after a short delay to free the memory reference.
     // The delay ensures the download has started before the URL is revoked.
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), REVOKE_OBJECT_URL_DELAY_MS);
   }
 
   /**

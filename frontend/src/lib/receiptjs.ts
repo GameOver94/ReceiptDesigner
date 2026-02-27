@@ -119,8 +119,11 @@ export function isReceiptJsLoaded(): boolean {
 export async function toSVG(content: string, settings: PrinterSettings): Promise<string> {
   if (!isReceiptJsLoaded()) return '';
   try {
-    // Receipt is confirmed non-undefined by the isReceiptJsLoaded() check above,
-    // but TypeScript doesn't narrow `declare const` unions the same way, so we assert.
+    // TypeScript cannot narrow `declare const` union types the same way it narrows
+    // local variables, so `Receipt` still has type `{ from(...) } | undefined` here
+    // even though isReceiptJsLoaded() confirmed it is defined. The non-null assertion
+    // is safe: the early-return above guarantees we only reach this line when
+    // typeof Receipt !== 'undefined'.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await Receipt!.from(content, settingsToOptions(settings)).toSVG();
   } catch (err) {
@@ -140,6 +143,8 @@ export async function toPNG(content: string, settings: PrinterSettings): Promise
   if (!isReceiptJsLoaded()) {
     throw new Error('Receipt.js is not loaded. See public/lib/README.md for setup instructions.');
   }
+  // Same narrowing limitation as in toSVG — the early throw above guarantees
+  // Receipt is defined here; the non-null assertion is safe.
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return Receipt!.from(content, settingsToOptions(settings)).toPNG();
 }
