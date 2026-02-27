@@ -28,8 +28,8 @@ export interface Folder {
 
 /**
  * A Document is the single top-level storage entity.
- * Any document whose content contains `{{` is considered a template — this is
- * derived at runtime and never stored as a separate flag.
+ * `isTemplate` is derived from content (true when content contains `{{`) and stored
+ * as a convenience flag by the adapter — it is set at save time and kept in sync.
  * See docs/design.md §2.1 for the full definition.
  */
 export interface ReceiptDocument {

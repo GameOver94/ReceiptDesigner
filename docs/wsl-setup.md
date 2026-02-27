@@ -89,16 +89,16 @@ npm install -g pnpm
 
 ---
 
-## 7. Install Python 3.14
+## 7. Install Python 3.12
 
-Ubuntu 25.10 ships Python 3.14 in the default repos — no PPA needed.
+Ubuntu 24.04 ships Python 3.12 in the default repos — no PPA needed.
 
 ```bash
-sudo apt install -y python3.14 python3.14-venv python3.14-dev
+sudo apt install -y python3.12 python3.12-venv python3.12-dev
 ```
 
-- [x] Python 3.14 installed
-- [x] Verify: `python3 --version` prints `Python 3.14.x`
+- [x] Python 3.12 installed
+- [x] Verify: `python3 --version` prints `Python 3.12.x`
 
 ---
 

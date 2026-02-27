@@ -28,7 +28,7 @@ export async function doNew(content: string, printerSettings: PrinterSettings): 
 
 /**
  * Persist the scratch buffer under a given name.
- * Throws on failure so the caller can display an error message.
+ * Errors are captured in documentStore.documentError — check that store for failure feedback.
  */
 export async function doSaveAs(
   name: string,
@@ -40,7 +40,7 @@ export async function doSaveAs(
 
 /**
  * Rename the currently open document.
- * Throws on failure so the caller can display an error message.
+ * Errors are captured in documentStore.documentError — check that store for failure feedback.
  */
 export async function doRename(name: string): Promise<void> {
   await renameDocument(name);
@@ -48,7 +48,7 @@ export async function doRename(name: string): Promise<void> {
 
 /**
  * Save the currently open document with the latest content and printer settings.
- * Throws on failure so the caller can display an error message.
+ * Errors are captured in documentStore.documentError — check that store for failure feedback.
  */
 export async function doSave(content: string, printerSettings: PrinterSettings): Promise<void> {
   await saveCurrentDocument({ content, printerSettings });

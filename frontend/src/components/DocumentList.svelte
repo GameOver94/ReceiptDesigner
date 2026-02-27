@@ -322,6 +322,7 @@
 {#if deleteTarget !== null}
   <DeleteModal
     documentName={deleteTarget.kind === 'doc' ? deleteTarget.doc.name : deleteTarget.folder.name}
+    itemType={deleteTarget.kind === 'doc' ? 'document' : 'folder'}
     onconfirm={handleDeleteConfirm}
     oncancel={handleDeleteCancel}
   />

@@ -2,11 +2,16 @@
   interface Props {
     /** Name of the item being deleted — shown in the body text. */
     documentName: string;
+    /** Human-readable item type shown in the title, e.g. "document" or "folder". */
+    itemType?: string;
     onconfirm: () => void;
     oncancel: () => void;
   }
 
-  const { documentName, onconfirm, oncancel }: Props = $props();
+  const { documentName, itemType = 'document', onconfirm, oncancel }: Props = $props();
+
+  // Capitalise first letter for the title heading.
+  const itemTypeCapitalised = $derived(itemType.charAt(0).toUpperCase() + itemType.slice(1));
 
   // Auto-focus the Cancel button so pressing Enter doesn't accidentally confirm.
   // Destructive actions should require a deliberate click.
@@ -35,9 +40,9 @@
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}
   >
-    <h2 class="modal-title" id="delete-modal-title">Delete document</h2>
+    <h2 class="modal-title" id="delete-modal-title">Delete {itemType}</h2>
     <p class="modal-body" id="delete-modal-desc">
-      Delete <strong>"{documentName}"</strong>? This cannot be undone.
+      Delete {itemTypeCapitalised} <strong>"{documentName}"</strong>? This cannot be undone.
     </p>
 
     <div class="modal-actions">
