@@ -311,3 +311,13 @@ export function clearSelection(): void {
   _isScratch.set(false);
   _isDirty.set(false);
 }
+
+/**
+ * Clear the dirty flag without persisting anything.
+ * Called after the editor has been reverted to the saved document content
+ * (discard-changes flow). The caller is responsible for restoring the editor
+ * content — this function only resets the dirty flag.
+ */
+export function clearDirty(): void {
+  _isDirty.set(false);
+}

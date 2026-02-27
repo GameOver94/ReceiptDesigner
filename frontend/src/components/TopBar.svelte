@@ -12,8 +12,15 @@
     deleteDocument,
     autoSaveIfDirty,
     openScratch,
+    clearDirty,
   } from '../stores/documentStore';
-  import { editorContent, printerSettings, resetEditor } from '../stores/editorStore';
+  import {
+    editorContent,
+    printerSettings,
+    resetEditor,
+    setContent,
+    setPrinterSettings,
+  } from '../stores/editorStore';
 
   let isSaving = $state(false);
   let errorMessage = $state<string | null>(null);
@@ -125,6 +132,19 @@
   function handleDeleteCancel(): void {
     showDeleteModal = false;
   }
+
+  /**
+   * Revert the editor to the last-saved content, discarding unsaved changes.
+   * Uses setState (via setContent → $effect in Editor.svelte) which also clears
+   * the CodeMirror undo history for the reverted content, so the user cannot
+   * Ctrl+Z back to the discarded state.
+   */
+  function handleDiscard(): void {
+    if ($currentDocument === null) return;
+    setContent($currentDocument.content);
+    setPrinterSettings($currentDocument.printerSettings);
+    clearDirty();
+  }
 </script>
 
 {#if modalMode !== null}
@@ -206,6 +226,11 @@
     >
       {isSaving ? 'Saving…' : isInScratch ? 'Save as…' : 'Save'}
     </Button>
+    {#if hasDirtyFlag && hasDocument && !isInScratch}
+      <Button variant="ghost" onclick={handleDiscard} ariaLabel="Discard unsaved changes">
+        Discard
+      </Button>
+    {/if}
     <Button
       variant="ghost"
       onclick={() => {
