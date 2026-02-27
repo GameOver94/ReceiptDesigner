@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { getAdapter } from './adapterStore';
+import { loadDocuments } from './documentStore';
 import type { Folder } from '$types/index';
 
 /**
@@ -76,8 +77,8 @@ export async function renameFolder(id: string, name: string): Promise<void> {
 
 /**
  * Delete a folder. Documents inside it are moved to root by the adapter
- * (mirrors SQL ON DELETE SET NULL). The document store must be refreshed
- * after this call so the UI reflects the orphaned documents.
+ * (mirrors SQL ON DELETE SET NULL). Refreshes the document store automatically
+ * so the UI reflects the orphaned documents without requiring the caller to do so.
  */
 export async function deleteFolder(id: string): Promise<void> {
   _error.set(null);
@@ -85,6 +86,10 @@ export async function deleteFolder(id: string): Promise<void> {
     const adapter = getAdapter();
     await adapter.deleteFolder(id);
     _folders.update((fs) => fs.filter((f) => f.id !== id));
+    // Refresh documents so any that were in this folder now show folderId: null.
+    // This is done internally to enforce the invariant — callers must not need
+    // to remember to call loadDocuments() themselves.
+    await loadDocuments();
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to delete folder';
     _error.set(message);

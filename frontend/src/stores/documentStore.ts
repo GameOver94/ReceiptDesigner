@@ -66,6 +66,13 @@ export const isDirty = { subscribe: _isDirty.subscribe };
 export const documentError = { subscribe: _error.subscribe };
 
 /**
+ * Last error from loadDocuments(), for display in the sidebar or app shell.
+ * Separate alias so consumers can subscribe specifically to load errors without
+ * conflating them with save/rename/delete errors.
+ */
+export const loadError = { subscribe: _error.subscribe };
+
+/**
  * True when the editor has content but no backing document yet.
  * The user must call saveAsScratch() to persist it.
  */

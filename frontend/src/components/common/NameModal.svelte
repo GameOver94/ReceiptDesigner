@@ -17,14 +17,14 @@
     oncancel,
   }: Props = $props();
 
-  let value = $state('');
-
-  // Initialize `value` from the prop each time the modal opens.
-  // Using $effect (not $state(initialValue)) to satisfy the linter's rule that
-  // $state() initializers should not reference props directly.
-  $effect(() => {
-    value = initialValue;
-  });
+  // Snapshot the initial value once at mount time.
+  // The modal is always conditionally rendered via {#if} in the parent, so the
+  // component is destroyed and recreated each time it opens — this runs exactly once.
+  // Intentional one-time capture at mount: the component is recreated each time the
+  // modal opens, so `initialValue` is always fresh. The ignore suppresses the Svelte
+  // compiler warning that would otherwise flag this as capturing a stale prop reference.
+  /* svelte-ignore state_referenced_locally */
+  let value = $state(initialValue);
 
   function handleKeydown(e: KeyboardEvent): void {
     if (e.key === 'Enter' && value.trim() !== '') {

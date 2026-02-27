@@ -254,4 +254,11 @@ describe('resolve', () => {
     // Block should remain intact — items: undefined means no expansion
     expect(result).toBe(content);
   });
+
+  it('removes the block entirely when items is an empty array', () => {
+    const content = 'Header\n{{#items}}\n{{name}}\n{{/items}}\nFooter';
+    const result = resolve(content, { items: [] });
+    // resolveLineItems removes the block body but keeps the surrounding lines
+    expect(result).toBe('Header\n\nFooter');
+  });
 });

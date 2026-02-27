@@ -42,6 +42,10 @@ export function initAdapter(): void {
   } else {
     // ApiAdapter will be implemented in Milestone 3.
     // For now, fall back to LocalStorageAdapter so production mode doesn't crash.
+    console.warn(
+      '[adapterStore] Production mode detected but ApiAdapter is not yet implemented. ' +
+        'Falling back to LocalStorageAdapter until Milestone 3.',
+    );
     _adapter.set(new LocalStorageAdapter());
   }
 }

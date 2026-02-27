@@ -13,6 +13,8 @@
 
 // Global styles must be imported before the app mounts so CSS custom properties
 // are available when components first render.
+// tokens.css must come before global.css so custom properties are defined first.
+import './styles/tokens.css';
 import './styles/global.css';
 
 import { mount } from 'svelte';

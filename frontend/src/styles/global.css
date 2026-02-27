@@ -5,11 +5,12 @@
  * Component-specific styles live in each .svelte file's <style> block.
  *
  * Import order in main.ts:
- *   1. tokens.css  (custom properties — must load first)
- *   2. global.css  (resets + app shell)
+ *   1. tokens.css  (custom properties — must load first, imported separately in main.ts)
+ *   2. global.css  (resets + app shell — this file)
+ *
+ * tokens.css is NOT re-imported here to avoid a double-import. main.ts imports
+ * both files in the correct order.
  */
-
-@import './tokens.css';
 
 /* --------------------------------------------------------------------------
  * Box-sizing reset

@@ -24,6 +24,14 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 /**
+ * Type guard that narrows an unknown value to a plain `Record<string, unknown>`.
+ * Used instead of `as Record<string, unknown>` to avoid an unsafe bare type assertion.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
  * Type guard that checks whether an unknown plain-object value has at least one
  * valid AppSettings key. Used instead of `as Partial<AppSettings>` to avoid unsafe
  * type assertions on data read back from localStorage.
@@ -43,14 +51,11 @@ function loadPersistedSettings(): AppSettings {
     const parsed: unknown = JSON.parse(raw);
     // Guard: only merge if it's a plain object so a corrupt/unexpected value
     // (string, array, null) doesn't silently override defaults.
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      return DEFAULT_SETTINGS;
-    }
-    const obj = parsed as Record<string, unknown>;
-    if (!isPartialAppSettings(obj)) return DEFAULT_SETTINGS;
+    if (!isRecord(parsed)) return DEFAULT_SETTINGS;
+    if (!isPartialAppSettings(parsed)) return DEFAULT_SETTINGS;
     // Merge with defaults so new settings keys added in future releases
     // get their default values without requiring a manual migration.
-    return { ...DEFAULT_SETTINGS, ...obj };
+    return { ...DEFAULT_SETTINGS, ...parsed };
   } catch {
     return DEFAULT_SETTINGS;
   }

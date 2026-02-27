@@ -13,7 +13,6 @@
     renameDocument,
     renameDocumentById,
     moveDocumentToFolder,
-    loadDocuments,
   } from '$store/documentStore';
   import {
     folders,
@@ -32,6 +31,10 @@
   import type { Folder, ReceiptDocument } from '$types/index';
   // ── Search ───────────────────────────────────────────────────────────────────
   let searchQuery = $state('');
+
+  // ── Inline error banner ──────────────────────────────────────────────────────
+  // Shows above the document list when an async action (rename, delete, etc.) fails.
+  let listError = $state<string | null>(null);
 
   // ── Kebab menu ───────────────────────────────────────────────────────────────
   // openMenu tracks which item's menu is open and which document it targets.
@@ -60,7 +63,14 @@
   let submenuPos = $state<SubmenuPos | null>(null);
 
   // ── Folder expand/collapse state (id → expanded) ─────────────────────────────
-  let expandedFolders = $state<Record<string, boolean>>({});
+  // userToggles holds only folders the user has explicitly toggled from their default.
+  // expandedFolders merges the default (true = expanded) with user overrides.
+  // Using $derived + a separate toggles record avoids the $effect-for-state-init anti-pattern:
+  // $derived is a pure computation from $folders, while userToggles holds imperative overrides.
+  let userToggles = $state<Record<string, boolean>>({});
+  let expandedFolders = $derived(
+    Object.fromEntries($folders.map((f) => [f.id, userToggles[f.id] ?? true])),
+  );
 
   // ── NameModal state ──────────────────────────────────────────────────────────
   type ModalMode = 'doc-rename' | 'folder-create' | 'folder-rename' | null;
@@ -85,14 +95,6 @@
   }
 
   // ── Initialise expand state when folders load ─────────────────────────────────
-  $effect(() => {
-    for (const f of $folders) {
-      if (!(f.id in expandedFolders)) {
-        expandedFolders[f.id] = true;
-      }
-    }
-  });
-
   // ── Document actions ──────────────────────────────────────────────────────────
 
   async function handleSelectDocument(doc: ReceiptDocument): Promise<void> {
@@ -136,7 +138,7 @@
     closeMenu();
     await moveDocumentToFolder(doc.id, folderId);
     if (folderId !== null) {
-      expandedFolders[folderId] = true;
+      userToggles[folderId] = true;
     }
   }
 
@@ -169,7 +171,7 @@
   }
 
   function toggleFolder(id: string): void {
-    expandedFolders[id] = !expandedFolders[id];
+    userToggles[id] = !(expandedFolders[id] ?? true);
   }
 
   // ── Modal confirm / cancel ─────────────────────────────────────────────────
@@ -179,6 +181,7 @@
     const target = modalTarget;
     modalMode = null;
     modalTarget = null;
+    listError = null;
 
     try {
       if (mode === 'doc-rename' && target !== null) {
@@ -193,6 +196,7 @@
         await renameFolder(target, name);
       }
     } catch (err) {
+      listError = err instanceof Error ? err.message : 'Operation failed';
       if (import.meta.env.DEV) console.error('[DocumentList] handleModalConfirm:', err);
     }
   }
@@ -208,6 +212,7 @@
     const target = deleteTarget;
     deleteTarget = null;
     if (target === null) return;
+    listError = null;
 
     try {
       if (target.kind === 'doc') {
@@ -216,10 +221,11 @@
         if (wasOpen) resetEditor();
       } else {
         await deleteFolder(target.folder.id);
-        await loadDocuments();
+        // loadDocuments() and loadFolders() are now called internally by deleteFolder.
         await loadFolders();
       }
     } catch (err) {
+      listError = err instanceof Error ? err.message : 'Delete failed';
       if (import.meta.env.DEV) console.error('[DocumentList] handleDeleteConfirm:', err);
     }
   }
@@ -346,6 +352,10 @@
       aria-label="Search documents"
     />
   </div>
+
+  {#if listError !== null}
+    <p class="list-error" role="alert">{listError}</p>
+  {/if}
 
   <ul class="doc-list" role="listbox" aria-label="Document list">
     <!-- ── Folders ──────────────────────────────────────────────────────── -->
@@ -797,5 +807,14 @@
     color: var(--rd-color-text-muted);
     font-size: var(--rd-font-sm);
     text-align: center;
+  }
+
+  .list-error {
+    margin: var(--rd-space-2) var(--rd-space-3);
+    padding: var(--rd-space-2) var(--rd-space-3);
+    font-size: var(--rd-font-sm);
+    color: var(--rd-color-error);
+    background-color: var(--rd-color-error-light);
+    border-radius: var(--rd-radius-sm);
   }
 </style>

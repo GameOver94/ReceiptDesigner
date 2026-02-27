@@ -58,7 +58,9 @@ export const editorExtensions: Extension[] = [
   EditorView.theme({
     '&': {
       height: '100%',
-      fontSize: '14px',
+      // Use the --rd-font-base token so font size respects the design system.
+      // CodeMirror themes accept any valid CSS value string.
+      fontSize: 'var(--rd-font-base)',
       fontFamily: 'var(--rd-font-mono)',
     },
     '.cm-scroller': {

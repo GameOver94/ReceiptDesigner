@@ -94,13 +94,25 @@ function settingsToOptions(settings: PrinterSettings): string {
 }
 
 /**
+ * Return the Receipt global if it has been loaded, or undefined.
+ *
+ * Encapsulating the access here means callers get a properly narrowed type
+ * (`{ from(...): ReceiptInstance }` not `... | undefined`) when they guard
+ * with `const r = getReceipt(); if (!r) return;`. This avoids the need for
+ * non-null assertions (`!`) at every call site.
+ */
+function getReceipt(): { from(markdown: string, options: string): ReceiptInstance } | undefined {
+  return typeof Receipt !== 'undefined' ? Receipt : undefined;
+}
+
+/**
  * Check whether Receipt.js has been loaded.
  * Returns false if the <script> tags in index.html failed to load (e.g. the files
  * are missing from public/lib/). This is expected during development until the
  * vendored files are placed in public/lib/.
  */
 export function isReceiptJsLoaded(): boolean {
-  return typeof Receipt !== 'undefined';
+  return getReceipt() !== undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,15 +129,10 @@ export function isReceiptJsLoaded(): boolean {
  * @param settings - Printer settings controlling CPL, encoding, etc.
  */
 export async function toSVG(content: string, settings: PrinterSettings): Promise<string> {
-  if (!isReceiptJsLoaded()) return '';
+  const r = getReceipt();
+  if (r === undefined) return '';
   try {
-    // TypeScript cannot narrow `declare const` union types the same way it narrows
-    // local variables, so `Receipt` still has type `{ from(...) } | undefined` here
-    // even though isReceiptJsLoaded() confirmed it is defined. The non-null assertion
-    // is safe: the early-return above guarantees we only reach this line when
-    // typeof Receipt !== 'undefined'.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return await Receipt!.from(content, settingsToOptions(settings)).toSVG();
+    return await r.from(content, settingsToOptions(settings)).toSVG();
   } catch (err) {
     if (import.meta.env.DEV) console.error('[receiptjs] toSVG error:', err);
     return '';
@@ -140,13 +147,11 @@ export async function toSVG(content: string, settings: PrinterSettings): Promise
  * @returns A Promise<string> resolving to a data: URL (e.g. "data:image/png;base64,...")
  */
 export async function toPNG(content: string, settings: PrinterSettings): Promise<string> {
-  if (!isReceiptJsLoaded()) {
+  const r = getReceipt();
+  if (r === undefined) {
     throw new Error('Receipt.js is not loaded. See public/lib/README.md for setup instructions.');
   }
-  // Same narrowing limitation as in toSVG — the early throw above guarantees
-  // Receipt is defined here; the non-null assertion is safe.
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return Receipt!.from(content, settingsToOptions(settings)).toPNG();
+  return r.from(content, settingsToOptions(settings)).toPNG();
 }
 
 // ---------------------------------------------------------------------------

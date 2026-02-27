@@ -26,7 +26,7 @@ declare const ReceiptPrinter:
        * Generate ESC/POS bytes from ReceiptLine markdown + printer options.
        * Returns a Uint8Array of raw ESC/POS command bytes.
        */
-      generate(markdown: string, options: Record<string, unknown>): Uint8Array;
+      generate(markdown: string, options: ReceiptOptions): Uint8Array;
     }
   | undefined;
 
@@ -44,7 +44,26 @@ declare const ReceiptSerial:
 // Helpers
 // ---------------------------------------------------------------------------
 
-function settingsToOptions(settings: PrinterSettings): Record<string, unknown> {
+/**
+ * Typed options object passed to ReceiptPrinter.generate().
+ * Field names match the Receipt.js API surface exactly.
+ */
+interface ReceiptOptions {
+  cpl: number;
+  encoding: string;
+  command: string;
+  spacing: boolean;
+  cutting: boolean;
+  upsideDown: boolean;
+  marginLeft: number;
+  marginRight: number;
+  gamma: number;
+  threshold: number;
+  printAsImage: boolean;
+  landscape: boolean;
+}
+
+function settingsToOptions(settings: PrinterSettings): ReceiptOptions {
   return {
     cpl: settings.cpl,
     encoding: settings.language,

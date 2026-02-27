@@ -32,8 +32,13 @@
         const docs = get(documents);
 
         if (docs.length > 0) {
-          // Select the last document (most recently created) and populate the editor.
-          const last = docs.at(-1);
+          // Select the most recently modified document and populate the editor.
+          // Sort descending by updatedAt so docs.at(0) is the latest regardless
+          // of insertion order (LocalStorageAdapter returns in creation order).
+          const sorted = [...docs].sort(
+            (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+          );
+          const last = sorted.at(0);
           if (last !== undefined) {
             selectDocument(last.id);
             setContent(last.content);
