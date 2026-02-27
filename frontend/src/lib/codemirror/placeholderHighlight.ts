@@ -65,9 +65,6 @@ export const placeholderHighlight = StateField.define<DecorationSet>({
     // If only the selection/cursor changed, map existing decorations through
     // the change set (much cheaper than a full rescan).
     if (tr.docChanged) {
-      // We can't access the EditorView here (StateField.update only gets the transaction),
-      // so we return empty and let the ViewPlugin (below) trigger a redraw.
-      // A different approach: scan the full document here using tr.newDoc.
       return buildDecorationsFromDoc(tr.newDoc.toString());
     }
     return decorations.map(tr.changes);

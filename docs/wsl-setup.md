@@ -1,6 +1,6 @@
 # ReceiptDesigner — WSL Dev Environment Setup
 
-Step-by-step checklist for setting up a fresh Ubuntu 25.10 WSL environment to work on this
+Step-by-step checklist for setting up a fresh Ubuntu 24.04 WSL environment to work on this
 project. Run every command in the WSL terminal unless noted otherwise.
 
 ---
@@ -9,7 +9,7 @@ project. Run every command in the WSL terminal unless noted otherwise.
 
 > Run this in **PowerShell (Administrator)** on Windows — not in WSL.
 
-- [x] Install WSL with Ubuntu 25.10:
+- [x] Install WSL with Ubuntu 24.04:
   ```powershell
   wsl --install -d Ubuntu-24.04
   ```

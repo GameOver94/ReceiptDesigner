@@ -221,7 +221,8 @@
         if (wasOpen) resetEditor();
       } else {
         await deleteFolder(target.folder.id);
-        // loadDocuments() and loadFolders() are now called internally by deleteFolder.
+        // deleteFolder() refreshes documents internally (via loadDocuments()).
+        // loadFolders() is still called here to remove the folder from the sidebar.
         await loadFolders();
       }
     } catch (err) {

@@ -10,6 +10,10 @@
 
   type PresetKey = keyof typeof PAPER_PRESETS;
 
+  // Precomputed typed key array — avoids a double `as` expression in the template
+  // ({#each ... as PresetKey[] as key} is ambiguous; a named const is clearer).
+  const PRESET_KEYS = Object.keys(PAPER_PRESETS) as PresetKey[];
+
   // Available command sets supported by Receipt.js
   const COMMANDS = ['escpos', 'epson', 'sii', 'citizen', 'generic', 'star'] as const;
 
@@ -87,7 +91,7 @@
            because <label> must be associated with a form control, not a button group. -->
       <span class="group-label" id="paper-width-group-label">Paper Width</span>
       <div class="preset-buttons" role="group" aria-labelledby="paper-width-group-label">
-        {#each Object.keys(PAPER_PRESETS) as PresetKey[] as key}
+        {#each PRESET_KEYS as key}
           <button
             class="preset-btn"
             class:is-active={selectedPreset === key}

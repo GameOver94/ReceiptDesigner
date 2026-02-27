@@ -28,6 +28,9 @@ const _isDirty = writable<boolean>(false);
 // Error message from the last failed operation (null = no error)
 const _error = writable<string | null>(null);
 
+// Error message specifically from loadDocuments() (null = no error)
+const _loadError = writable<string | null>(null);
+
 /**
  * Scratch mode: the editor is active with in-memory content but no backing
  * document has been saved yet. The user must explicitly name and save to persist.
@@ -66,11 +69,11 @@ export const isDirty = { subscribe: _isDirty.subscribe };
 export const documentError = { subscribe: _error.subscribe };
 
 /**
- * Last error from loadDocuments(), for display in the sidebar or app shell.
- * Separate alias so consumers can subscribe specifically to load errors without
- * conflating them with save/rename/delete errors.
+ * Last error specifically from loadDocuments(), for display in the sidebar or app shell.
+ * This is a dedicated writable — it is only set inside loadDocuments() — so consumers
+ * can subscribe to load failures without seeing save/rename/delete/move errors.
  */
-export const loadError = { subscribe: _error.subscribe };
+export const loadError = { subscribe: _loadError.subscribe };
 
 /**
  * True when the editor has content but no backing document yet.
@@ -87,14 +90,14 @@ export const isScratch = { subscribe: _isScratch.subscribe };
  * Called on app mount in App.svelte.
  */
 export async function loadDocuments(): Promise<void> {
-  _error.set(null);
+  _loadError.set(null);
   try {
     const adapter = getAdapter();
     const docs = await adapter.listDocuments();
     _documents.set(docs);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to load documents';
-    _error.set(message);
+    _loadError.set(message);
     if (import.meta.env.DEV) console.error('[documentStore] loadDocuments:', err);
   }
 }

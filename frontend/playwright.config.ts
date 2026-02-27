@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: true,
   // Fail fast in CI — don't retry flaky tests on the first run
   retries: process.env['CI'] ? 1 : 0,
-  // Use all available CPU cores in CI for faster runs
+  // Limit to 1 worker in CI to avoid resource contention on shared runners
   workers: process.env['CI'] ? 1 : undefined,
   reporter: 'html',
 
