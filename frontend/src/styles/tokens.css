@@ -1,0 +1,127 @@
+/**
+ * ReceiptDesigner CSS Design Tokens
+ *
+ * All colours, spacing, typography, and other design values live here as CSS
+ * custom properties (variables). Components consume them with var(--rd-*).
+ *
+ * Why custom properties instead of hardcoded values?
+ * - Single source of truth: changing a value here updates every component.
+ * - Dark mode support (future): override tokens in a [data-theme="dark"] block.
+ * - Enforces consistency: no one-off hex codes scattered through component files.
+ *
+ * Naming convention: --rd-<category>-<name>[-variant]
+ */
+
+:root {
+  /* --------------------------------------------------------------------------
+   * Colour — background
+   * ---------------------------------------------------------------------- */
+  --rd-color-bg-primary: #ffffff;
+  --rd-color-bg-secondary: #f5f5f5;
+  --rd-color-bg-tertiary: #ebebeb;
+  --rd-color-bg-overlay: rgba(0, 0, 0, 0.4);
+
+  /* --------------------------------------------------------------------------
+   * Colour — text
+   * ---------------------------------------------------------------------- */
+  --rd-color-text-primary: #1a1a1a;
+  --rd-color-text-secondary: #666666;
+  --rd-color-text-muted: #999999;
+  --rd-color-text-inverse: #ffffff;
+
+  /* --------------------------------------------------------------------------
+   * Colour — accent / interactive
+   * ---------------------------------------------------------------------- */
+  --rd-color-accent: #2563eb;
+  --rd-color-accent-hover: #1d4ed8;
+  --rd-color-accent-light: #dbeafe;
+
+  /* --------------------------------------------------------------------------
+   * Colour — borders and dividers
+   * ---------------------------------------------------------------------- */
+  --rd-color-border: #e2e8f0;
+  --rd-color-border-strong: #cbd5e1;
+
+  /* --------------------------------------------------------------------------
+   * Colour — semantic states
+   * ---------------------------------------------------------------------- */
+  --rd-color-success: #16a34a;
+  --rd-color-warning: #d97706;
+  --rd-color-error: #dc2626;
+  --rd-color-error-hover: #b91c1c;
+  --rd-color-error-light: #fee2e2;
+
+  /* --------------------------------------------------------------------------
+   * Colour — placeholder highlighting
+   * Used by the CodeMirror placeholderHighlight extension for {{...}} tags.
+   * ---------------------------------------------------------------------- */
+  --rd-color-placeholder: #f59e0b;
+  --rd-color-placeholder-bg: #fef3c7;
+
+  /* --------------------------------------------------------------------------
+   * Colour — preview pane background
+   * Neutral grey suggests paper/roll context without a literal frame graphic.
+   * ---------------------------------------------------------------------- */
+  --rd-color-preview-bg: #d1d5db;
+
+  /* --------------------------------------------------------------------------
+   * Typography
+   * ---------------------------------------------------------------------- */
+  --rd-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --rd-font-ui: system-ui, -apple-system, sans-serif;
+
+  --rd-font-sm: 0.75rem; /* 12px */
+  --rd-font-base: 0.875rem; /* 14px */
+  --rd-font-lg: 1rem; /* 16px */
+  --rd-font-xl: 1.125rem; /* 18px */
+
+  --rd-font-weight-normal: 400;
+  --rd-font-weight-medium: 500;
+  --rd-font-weight-bold: 600;
+
+  --rd-line-height-tight: 1.25;
+  --rd-line-height-normal: 1.5;
+
+  /* --------------------------------------------------------------------------
+   * Spacing (multiples of 4 px)
+   * ---------------------------------------------------------------------- */
+  --rd-space-1: 4px;
+  --rd-space-2: 8px;
+  --rd-space-3: 12px;
+  --rd-space-4: 16px;
+  --rd-space-5: 20px;
+  --rd-space-6: 24px;
+  --rd-space-8: 32px;
+  --rd-space-10: 40px;
+  --rd-space-12: 48px;
+
+  /* --------------------------------------------------------------------------
+   * Border radius
+   * ---------------------------------------------------------------------- */
+  --rd-radius-sm: 4px;
+  --rd-radius-md: 8px;
+  --rd-radius-lg: 12px;
+  --rd-radius-full: 9999px;
+
+  /* --------------------------------------------------------------------------
+   * Shadows
+   * ---------------------------------------------------------------------- */
+  --rd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --rd-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --rd-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+
+  /* --------------------------------------------------------------------------
+   * Layout dimensions
+   * Named dimensions for the app shell grid regions.
+   * ---------------------------------------------------------------------- */
+  --rd-topbar-height: 48px;
+  --rd-sidebar-width: 240px;
+  --rd-sidebar-collapsed-width: 48px;
+  --rd-printer-panel-width: 260px;
+
+  /* --------------------------------------------------------------------------
+   * Transition
+   * ---------------------------------------------------------------------- */
+  --rd-transition-fast: 150ms ease;
+  --rd-transition-normal: 250ms ease;
+}

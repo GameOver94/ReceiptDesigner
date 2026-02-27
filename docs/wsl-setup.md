@@ -9,12 +9,12 @@ project. Run every command in the WSL terminal unless noted otherwise.
 
 > Run this in **PowerShell (Administrator)** on Windows — not in WSL.
 
-- [ ] Install WSL with Ubuntu 24.04:
+- [x] Install WSL with Ubuntu 24.04:
   ```powershell
   wsl --install -d Ubuntu-24.04
   ```
-- [ ] Restart Windows when prompted.
-- [ ] Open the **Ubuntu 24.04** app from the Start menu and complete the first-run setup
+- [x] Restart Windows when prompted.
+- [x] Open the **Ubuntu 24.04** app from the Start menu and complete the first-run setup
       (create a Unix username and password).
 
 ---
@@ -25,7 +25,7 @@ project. Run every command in the WSL terminal unless noted otherwise.
 sudo apt update && sudo apt upgrade -y
 ```
 
-- [ ] System packages are up to date.
+- [x] System packages are up to date.
 
 ---
 
@@ -51,9 +51,9 @@ git config --global user.email "you@example.com"
 git config --global core.autocrlf false
 ```
 
-- [ ] `user.name` set
-- [ ] `user.email` set
-- [ ] `core.autocrlf false` — prevents Git from mangling line endings between WSL and Windows
+- [x] `user.name` set
+- [x] `user.email` set
+- [x] `core.autocrlf false` — prevents Git from mangling line endings between WSL and Windows
 
 ---
 
@@ -64,15 +64,15 @@ git config --global core.autocrlf false
 ```bash
 curl -fsSL https://fnm.vercel.app/install | bash
 source ~/.bashrc
-fnm install 20
-fnm use 20
-fnm default 20
+fnm install 25
+fnm use 25
+fnm default 25
 ```
 
-- [ ] fnm installed
-- [ ] Node 20 installed and set as default
-- [ ] Verify: `node --version` prints `v20.x.x`
-- [ ] Verify: `npm --version` prints a version number
+- [x] fnm installed
+- [x] Node 25 installed and set as default
+- [x] Verify: `node --version` prints `v25.x.x`
+- [x] Verify: `npm --version` prints a version number
 
 ---
 
@@ -84,8 +84,8 @@ pnpm is the package manager for the frontend.
 npm install -g pnpm
 ```
 
-- [ ] pnpm installed
-- [ ] Verify: `pnpm --version` prints a version number
+- [x] pnpm installed
+- [x] Verify: `pnpm --version` prints a version number
 
 ---
 
@@ -97,8 +97,8 @@ Ubuntu 24.04 ships Python 3.12 in the default repos — no PPA needed.
 sudo apt install -y python3.12 python3.12-venv python3.12-dev
 ```
 
-- [ ] Python 3.12 installed
-- [ ] Verify: `python3.12 --version` prints `Python 3.12.x`
+- [x] Python 3.12 installed
+- [x] Verify: `python3 --version` prints `Python 3.12.x`
 
 ---
 
@@ -111,8 +111,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 source ~/.bashrc
 ```
 
-- [ ] uv installed
-- [ ] Verify: `uv --version` prints a version number
+- [x] uv installed
+- [x] Verify: `uv --version` prints a version number
 
 ---
 
@@ -125,9 +125,9 @@ terminal.
 sudo apt install -y gh
 ```
 
-- [ ] gh installed
-- [ ] Authenticate: `gh auth login` (follow the prompts — choose GitHub.com → HTTPS → browser)
-- [ ] Verify: `gh auth status` shows you are logged in
+- [x] gh installed
+- [x] Authenticate: `gh auth login` (follow the prompts — choose GitHub.com → HTTPS → browser)
+- [x] Verify: `gh auth status` shows you are logged in
 
 ---
 
@@ -138,8 +138,8 @@ curl -fsSL https://opencode.ai/install | bash
 source ~/.bashrc
 ```
 
-- [ ] OpenCode installed
-- [ ] Verify: `opencode --version` prints a version number
+- [x] OpenCode installed
+- [x] Verify: `opencode --version` prints a version number
 
 ---
 
@@ -154,8 +154,8 @@ cp -r /mnt/c/Users/patri/Desktop/ReceiptDesigner ~/code/ReceiptDesigner
 cd ~/code/ReceiptDesigner
 ```
 
-- [ ] Project copied to `~/code/ReceiptDesigner`
-- [ ] Verify: `ls` shows `docs/`, `AGENTS.md`, `opencode.json`, etc.
+- [x] Project copied to `~/code/ReceiptDesigner`
+- [x] Verify: `ls` shows `docs/`, `AGENTS.md`, `opencode.json`, etc.
 
 ---
 
