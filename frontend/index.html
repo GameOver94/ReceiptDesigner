@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReceiptDesigner</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  </head>
+  <body>
+    <!--
+      Runtime configuration object injected before the app boots.
+      In demo mode this is baked into the static HTML at build time.
+      In production mode the FastAPI server replaces this inline script with
+      one that sets mode: 'production' before serving the file.
+
+      Using window.__APP_CONFIG__ (rather than import.meta.env.VITE_*) lets the
+      server override the mode at runtime without rebuilding the frontend bundle.
+      See docs/design.md §3.1 for the full deployment mode explanation.
+    -->
+    <script>
+      window.__APP_CONFIG__ = { mode: 'demo' };
+    </script>
+
+    <!--
+      Receipt.js is loaded as UMD globals from local files (not npm packages).
+      This is intentional: Receipt.js is not published to npm, so we vendor it
+      in public/lib/ and load it via <script> tags. The files must be downloaded
+      from https://github.com/receiptline/receiptline and placed in public/lib/.
+
+      The scripts are loaded before the Svelte app so window.Receipt is available
+      when the first preview render runs.
+    -->
+    <script src="./lib/receipt.js"></script>
+    <script src="./lib/receipt-printer.js"></script>
+    <script src="./lib/receipt-serial.js"></script>
+
+    <!-- The Svelte app mounts here -->
+    <div id="app"></div>
+
+    <!-- Vite injects the compiled app bundle here during build -->
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

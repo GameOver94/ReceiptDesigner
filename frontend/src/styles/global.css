@@ -1,0 +1,136 @@
+/**
+ * ReceiptDesigner Global Styles
+ *
+ * This file contains only resets and the top-level app shell layout.
+ * Component-specific styles live in each .svelte file's <style> block.
+ *
+ * Import order in main.ts:
+ *   1. tokens.css  (custom properties — must load first)
+ *   2. global.css  (resets + app shell)
+ */
+
+@import './tokens.css';
+
+/* --------------------------------------------------------------------------
+ * Box-sizing reset
+ * Setting box-sizing: border-box on every element means width/height include
+ * padding and border. This is almost always what you want and prevents
+ * frustrating layout surprises when adding padding to sized elements.
+ * ---------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* --------------------------------------------------------------------------
+ * Base body styles
+ * ---------------------------------------------------------------------- */
+html,
+body {
+  height: 100%;
+  overflow: hidden; /* The app shell handles scrolling in each region */
+}
+
+body {
+  font-family: var(--rd-font-ui);
+  font-size: var(--rd-font-base);
+  line-height: var(--rd-line-height-normal);
+  color: var(--rd-color-text-primary);
+  background-color: var(--rd-color-bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------------------------------------------------------------------------
+ * App shell root element
+ * The #app div is the CSS Grid container for the four named regions.
+ * Using a named grid is preferred over absolute positioning because it
+ * keeps all layout logic in one place and adapts easily when panel widths
+ * change. See docs/design.md §10.1 for the region diagram.
+ *
+ * Grid columns:
+ *   left-sidebar | editor-area | preview-pane | printer-settings
+ * Grid rows:
+ *   top-bar | main (fills remaining height)
+ * ---------------------------------------------------------------------- */
+#app {
+  display: grid;
+  height: 100vh;
+  grid-template-rows: var(--rd-topbar-height) 1fr;
+  grid-template-columns:
+    var(--rd-sidebar-width)
+    1fr
+    1fr
+    var(--rd-printer-panel-width);
+  grid-template-areas:
+    'top-bar   top-bar     top-bar      top-bar'
+    'sidebar   editor      preview      printer';
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+ * Focus ring
+ * Visible focus styles are required for keyboard accessibility (WCAG 2.1 AA).
+ * We use an outline instead of box-shadow so it works on non-rectangular elements.
+ * ---------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--rd-color-accent);
+  outline-offset: 2px;
+}
+
+/* Remove focus ring for mouse users only */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+ * Scrollbar styling (Webkit)
+ * ---------------------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--rd-color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--rd-color-border-strong);
+  border-radius: var(--rd-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rd-color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+ * CodeMirror placeholder tag highlight class
+ * This is a :global style because CodeMirror renders its DOM outside of
+ * Svelte's scoped style system. The class name matches what placeholderHighlight.ts
+ * injects into the editor.
+ * ---------------------------------------------------------------------- */
+.cm-placeholder-tag {
+  background-color: var(--rd-color-placeholder-bg);
+  color: var(--rd-color-placeholder);
+  border-radius: var(--rd-radius-sm);
+  padding: 0 2px;
+}
+
+/* --------------------------------------------------------------------------
+ * Utility — visually hidden (accessible text for screen readers)
+ * ---------------------------------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
