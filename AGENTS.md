@@ -234,6 +234,19 @@ Branch names: `<type>/<short-description>` (lowercase, hyphens) — e.g. `feat/p
 Commit scopes: `frontend`, `server`, `editor`, `placeholder`, `printer`, `ci`.  
 One logical change per PR; all CI checks must pass before merge.
 
+### Remote / PR Rules (non-negotiable)
+
+- **Never push to `main`** — `main` receives changes only through merged PRs.
+- **Always work on a branch** — create a `<type>/<short-description>` branch before making any
+  commits. Never commit directly on `main`.
+- **Never push to remote unless explicitly asked** — local commits are fine; only run
+  `git push` when the user says to push or publish the branch.
+- **Never open a pull request unless explicitly asked** — do not run `gh pr create` on your own
+  initiative.
+- **Never merge a pull request** — merging is always done by the user. Do not run
+  `gh pr merge` under any circumstances.
+- **Never close a pull request** — do not run `gh pr close` unless the user explicitly asks.
+
 ---
 
 ## Current Milestone
