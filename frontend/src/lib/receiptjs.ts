@@ -25,6 +25,12 @@ interface ReceiptInstance {
   toSVG(): Promise<string>;
   /** Render the receipt as a PNG data URL. */
   toPNG(): Promise<string>;
+  /**
+   * Generate raw ESC/POS (or other printer command) bytes as a binary string.
+   * Each character's char-code is one byte — convert to Uint8Array before writing
+   * to a serial port writer.
+   */
+  toCommand(): Promise<string>;
 }
 
 /**
@@ -65,7 +71,7 @@ declare const Receipt:
  *   -b <threshold>  image thresholding (0–255)
  *   -g <gamma>      image gamma (0.1–10.0)
  */
-function settingsToOptions(settings: PrinterSettings): string {
+export function settingsToOptions(settings: PrinterSettings): string {
   const parts: string[] = [];
 
   parts.push('-p', settings.command);
@@ -152,6 +158,26 @@ export async function toPNG(content: string, settings: PrinterSettings): Promise
     throw new Error('Receipt.js is not loaded. See public/lib/README.md for setup instructions.');
   }
   return r.from(content, settingsToOptions(settings)).toPNG();
+}
+
+/**
+ * Generate ESC/POS (or other printer command language) bytes as a binary string.
+ *
+ * The returned string is a raw binary string — each character represents one byte.
+ * Convert to Uint8Array before writing to a serial port:
+ *   const bytes = new Uint8Array(cmd.length);
+ *   for (let i = 0; i < cmd.length; i++) bytes[i] = cmd.charCodeAt(i) & 0xff;
+ *
+ * @param content  - The ReceiptLine markdown string (all placeholders already resolved)
+ * @param options  - CLI-style options string from settingsToOptions(), e.g. '-p escpos -c 48 -l en'
+ * @returns A Promise<string> resolving to a raw binary command string
+ */
+export async function toCommand(content: string, options: string): Promise<string> {
+  const r = getReceipt();
+  if (r === undefined) {
+    throw new Error('Receipt.js is not loaded. See public/lib/README.md for setup instructions.');
+  }
+  return r.from(content, options).toCommand();
 }
 
 // ---------------------------------------------------------------------------

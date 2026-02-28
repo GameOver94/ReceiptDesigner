@@ -2,12 +2,39 @@
   import Button from './common/Button.svelte';
   import NameModal from './common/NameModal.svelte';
   import DeleteModal from './common/DeleteModal.svelte';
-  import { currentDocument, isDirty, isScratch, clearDirty } from '$store/documentStore';
+  import PlaceholderMetaEditor from './PlaceholderMetaEditor.svelte';
+  import {
+    currentDocument,
+    isDirty,
+    isScratch,
+    clearDirty,
+    saveCurrentDocument,
+  } from '$store/documentStore';
   import { editorContent, printerSettings } from '$store/editorStore';
+  import {
+    detectedPlaceholders,
+    csvRows,
+    csvMode,
+    isPlaceholderMetaEditorOpen,
+    openMetaEditor,
+    closeMetaEditor,
+  } from '$store/placeholderStore';
+  import { print, printBatch } from '$lib/printing';
   import { doNew, doSaveAs, doRename, doSave, doDelete, doRevert } from '$lib/topBarActions';
+  import { isTemplate, resolve } from '$lib/variables';
+  import type { PlaceholderMeta } from '$types/index';
 
   let isSaving = $state(false);
   let errorMessage = $state<string | null>(null);
+  let printStatusMessage = $state<string | null>(null);
+  // Plain let — not reactive; $state() here would cause unnecessary re-renders
+  // on every setTimeout/clearTimeout call.
+  let _printStatusTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Cancel any pending status-banner timer when the component is destroyed.
+  $effect(() => () => {
+    if (_printStatusTimer !== null) clearTimeout(_printStatusTimer);
+  });
 
   // NameModal state — reused for rename and first-save
   type ModalMode = 'save-as' | 'rename' | null;
@@ -22,12 +49,26 @@
   let isInScratch = $derived($isScratch);
   let isDemo = $derived(window.__APP_CONFIG__?.mode === 'demo');
 
+  /**
+   * Whether the current document is a template (content contains {{}}).
+   * Derived from the live editor content rather than the saved document so the
+   * placeholder buttons appear/disappear as the user types.
+   */
+  let currentIsTemplate = $derived(isTemplate($editorContent));
+
   // Center label: scratch shows "Untitled", saved doc shows its name
   let centerLabel = $derived(
     isInScratch ? 'Untitled' : ($currentDocument?.name ?? 'No document open'),
   );
   // Whether the center label should be interactive (opens rename)
   let canRename = $derived(hasDocument && !isInScratch);
+
+  // Current document's placeholder meta (empty array when none selected)
+  let currentMeta = $derived($currentDocument?.placeholderMeta ?? []);
+
+  // ---------------------------------------------------------------------------
+  // Document action handlers
+  // ---------------------------------------------------------------------------
 
   async function handleNew(): Promise<void> {
     await doNew($editorContent, $printerSettings);
@@ -111,16 +152,116 @@
 
   /**
    * Revert the editor to the last-saved content, discarding unsaved changes.
-   * Uses setState (via setContent → $effect in Editor.svelte) which also clears
-   * the CodeMirror undo history for the reverted content, so the user cannot
-   * Ctrl+Z back to the discarded state.
    */
   function handleDiscard(): void {
     if ($currentDocument === null) return;
     doRevert($currentDocument.content, $currentDocument.printerSettings);
     clearDirty();
   }
+
+  // ---------------------------------------------------------------------------
+  // Placeholder system handlers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * "Fill & Print" — resolves placeholders and prints.
+   *
+   * - batch mode CSV: prints one receipt per CSV row (all rows), using each
+   *   row's columns as scalar values.
+   * - line-item mode CSV: prints one receipt with all rows as {{#items}} block.
+   * - no CSV: resolves defaultValues from Edit Fields (scalar only).
+   */
+  async function handleFillAndPrint(): Promise<void> {
+    const content = $editorContent;
+    const mode = $csvMode;
+    const rows = $csvRows;
+
+    if (mode === 'batch' && rows.length > 0) {
+      // One receipt per CSV row — each row's columns become scalar values.
+      const jobs = rows.map((row) => ({
+        content: resolve(content, { scalars: row }),
+        settings: $printerSettings,
+      }));
+      printStatusMessage = null;
+      try {
+        const results = await printBatch(jobs);
+        const failed = results.find((r) => r.status !== 'success');
+        if (failed !== undefined) {
+          printStatusMessage = failed.message ?? 'Batch print failed.';
+        } else {
+          printStatusMessage = `Printed ${String(results.length)} receipt(s).`;
+        }
+      } catch (err) {
+        printStatusMessage = err instanceof Error ? err.message : 'Print failed.';
+        if (import.meta.env.DEV) console.error('[TopBar] batch print error:', err);
+      }
+      clearTimeout(_printStatusTimer ?? undefined);
+      _printStatusTimer = setTimeout(() => {
+        printStatusMessage = null;
+      }, 8000);
+      return;
+    }
+
+    // Line-item mode or no CSV: build scalars from defaultValues + items from CSV.
+    const scalars: Record<string, string> = {};
+    for (const name of $detectedPlaceholders) {
+      const metaEntry = currentMeta.find((m) => m.name === name);
+      if (metaEntry?.defaultValue !== undefined && metaEntry.defaultValue !== '') {
+        scalars[name] = metaEntry.defaultValue;
+      }
+    }
+    const items = mode === 'line-item' && rows.length > 0 ? rows : undefined;
+    const resolved = resolve(content, { scalars, items });
+    await _doPrint(resolved);
+  }
+
+  /**
+   * Plain "Print" for non-template documents — prints the current editor content
+   * directly without any placeholder resolution.
+   */
+  async function handlePrint(): Promise<void> {
+    await _doPrint($editorContent);
+  }
+
+  /**
+   * Shared print dispatch: generate ESC/POS and send to printer.
+   * Shows a status banner for 8 s on success or error.
+   */
+  async function _doPrint(content: string): Promise<void> {
+    printStatusMessage = null;
+    try {
+      const result = await print(content, $printerSettings);
+      if (result.status === 'success') {
+        printStatusMessage = 'Sent to printer.';
+      } else {
+        printStatusMessage = result.message ?? 'Print failed.';
+      }
+    } catch (err) {
+      printStatusMessage = err instanceof Error ? err.message : 'Print failed.';
+      if (import.meta.env.DEV) console.error('[TopBar] print error:', err);
+    }
+    clearTimeout(_printStatusTimer ?? undefined);
+    _printStatusTimer = setTimeout(() => {
+      printStatusMessage = null;
+    }, 8000);
+  }
+
+  /**
+   * Called by PlaceholderMetaEditor when the user saves updated field metadata.
+   * Persists the updated meta to the current document via documentStore.
+   */
+  async function handleMetaSave(updatedMeta: PlaceholderMeta[]): Promise<void> {
+    closeMetaEditor();
+    try {
+      await saveCurrentDocument({ placeholderMeta: updatedMeta });
+    } catch (err) {
+      errorMessage = err instanceof Error ? err.message : 'Failed to save field metadata';
+      if (import.meta.env.DEV) console.error('[TopBar] meta save error:', err);
+    }
+  }
 </script>
+
+<!-- ─── Modals (rendered outside the header so they overlay the whole page) ─── -->
 
 {#if modalMode !== null}
   <NameModal
@@ -140,6 +281,17 @@
     oncancel={handleDeleteCancel}
   />
 {/if}
+
+{#if $isPlaceholderMetaEditorOpen}
+  <PlaceholderMetaEditor
+    placeholders={$detectedPlaceholders}
+    meta={currentMeta}
+    onsave={handleMetaSave}
+    oncancel={closeMetaEditor}
+  />
+{/if}
+
+<!-- ─── Top bar ─────────────────────────────────────────────────────────────── -->
 
 <header class="top-bar">
   <div class="top-bar-left">
@@ -179,9 +331,20 @@
         {centerLabel}{isInScratch && hasDirtyFlag ? ' *' : ''}
       </span>
     {/if}
+
+    <!--
+      Template badge: shown when the current editor content contains {{...}}.
+      Derives from live editor content so it appears/disappears without saving.
+    -->
+    {#if currentIsTemplate}
+      <span class="template-badge" title="This document contains placeholder fields">
+        Template
+      </span>
+    {/if}
   </div>
 
   <nav class="top-bar-actions" aria-label="Document actions">
+    <!-- Standard document actions -->
     <Button
       variant="ghost"
       onclick={() => {
@@ -214,11 +377,66 @@
     >
       Delete
     </Button>
+
+    <!-- ── Print actions ─────────────────────────────────────────────────── -->
+    <div class="actions-divider" aria-hidden="true"></div>
+
+    {#if currentIsTemplate}
+      <!-- Template: show Fill & Print + Edit Fields -->
+      <Button
+        variant="primary"
+        onclick={() => {
+          void handleFillAndPrint();
+        }}
+        isDisabled={isInScratch}
+        ariaLabel={isInScratch
+          ? 'Save document before filling placeholders'
+          : 'Fill in template fields and print'}
+      >
+        Fill &amp; Print
+      </Button>
+
+      <Button
+        variant="ghost"
+        onclick={openMetaEditor}
+        isDisabled={isInScratch}
+        ariaLabel={isInScratch
+          ? 'Save document before editing fields'
+          : 'Edit template field definitions'}
+      >
+        Edit Fields
+      </Button>
+    {:else}
+      <!-- Non-template: plain Print button -->
+      <Button
+        variant="primary"
+        onclick={() => {
+          void handlePrint();
+        }}
+        isDisabled={!hasDocument}
+        ariaLabel="Print document"
+      >
+        Print
+      </Button>
+    {/if}
   </nav>
 
   {#if errorMessage !== null}
     <div class="error-banner" role="alert">
       {errorMessage}
+    </div>
+  {/if}
+
+  {#if printStatusMessage !== null}
+    <div class="status-banner" role="status">
+      {printStatusMessage}
+      <button
+        class="banner-dismiss"
+        onclick={() => {
+          printStatusMessage = null;
+        }}
+        aria-label="Dismiss">✕</button
+      >
     </div>
   {/if}
 </header>
@@ -261,6 +479,10 @@
 
   .top-bar-center {
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--rd-space-2);
     text-align: center;
   }
 
@@ -299,10 +521,33 @@
     color: var(--rd-color-warning);
   }
 
+  /*
+   * Amber pill badge indicating the current document is a template.
+   * Uses the placeholder colour token to reinforce the visual language
+   * of {{...}} highlighting in the editor.
+   */
+  .template-badge {
+    font-size: var(--rd-font-sm);
+    font-weight: var(--rd-font-weight-medium);
+    padding: 2px var(--rd-space-2);
+    background-color: var(--rd-color-placeholder-bg);
+    color: var(--rd-color-placeholder);
+    border-radius: var(--rd-radius-full);
+    flex-shrink: 0;
+  }
+
   .top-bar-actions {
     display: flex;
     align-items: center;
     gap: var(--rd-space-2);
+    flex-shrink: 0;
+  }
+
+  /* Visual separator between standard actions and placeholder actions */
+  .actions-divider {
+    width: 1px;
+    height: var(--rd-space-4);
+    background-color: var(--rd-color-border-strong);
     flex-shrink: 0;
   }
 
@@ -318,5 +563,38 @@
     font-size: var(--rd-font-sm);
     white-space: nowrap;
     z-index: 20;
+  }
+
+  .status-banner {
+    position: absolute;
+    bottom: calc(-1 * var(--rd-topbar-height));
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--rd-space-2) var(--rd-space-4);
+    background-color: var(--rd-color-accent-light);
+    color: var(--rd-color-accent);
+    border-radius: var(--rd-radius-sm);
+    font-size: var(--rd-font-sm);
+    white-space: nowrap;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: var(--rd-space-3);
+  }
+
+  .banner-dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: var(--rd-font-sm);
+    color: inherit;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+    flex-shrink: 0;
+  }
+
+  .banner-dismiss:hover {
+    opacity: 1;
   }
 </style>

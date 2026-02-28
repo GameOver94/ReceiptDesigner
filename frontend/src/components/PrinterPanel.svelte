@@ -1,5 +1,8 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { printerSettings, updatePrinterSettings } from '$store/editorStore';
+  import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
+  import type { SerialStatus } from '$lib/printing';
 
   // Paper width presets — const object per coding-style.md §6.3 (no enums)
   const PAPER_PRESETS = {
@@ -72,6 +75,36 @@
     const checkbox = event.target as HTMLInputElement;
     updatePrinterSettings({ cutting: checkbox.checked });
   }
+
+  // ---------------------------------------------------------------------------
+  // Printer connection
+  // ---------------------------------------------------------------------------
+
+  let serialStatus = $state<SerialStatus>('disconnected');
+
+  const _unsubStatus = subscribeSerialStatus((s) => {
+    serialStatus = s;
+  });
+  onDestroy(_unsubStatus);
+
+  const STATUS_LABEL: Record<SerialStatus, string> = {
+    unsupported: 'Not supported',
+    disconnected: 'Disconnected',
+    connecting: 'Connecting…',
+    online: 'Connected',
+    offline: 'Printer offline',
+    coveropen: 'Cover open',
+    paperempty: 'Paper empty',
+    error: 'Connection error',
+  };
+
+  function handleConnect(): void {
+    connectSerial();
+  }
+
+  function handleDisconnect(): void {
+    disconnectSerial();
+  }
 </script>
 
 <!--
@@ -84,6 +117,42 @@
   </div>
 
   <div class="panel-body">
+    <!-- ── Printer connection ──────────────────────────────────────────── -->
+    <div class="setting-group">
+      <span class="group-label" id="connection-group-label">Printer Connection</span>
+      <div
+        class="connection-status"
+        class:is-online={serialStatus === 'online'}
+        class:is-warning={serialStatus === 'coveropen' || serialStatus === 'paperempty'}
+        class:is-offline={serialStatus === 'offline' || serialStatus === 'error'}
+        aria-live="polite"
+      >
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="status-text">{STATUS_LABEL[serialStatus]}</span>
+      </div>
+      {#if serialStatus === 'unsupported'}
+        <p class="setting-hint">
+          Web Serial requires Chrome or Edge. Export as SVG/PNG for other browsers.
+        </p>
+      {:else if serialStatus === 'coveropen'}
+        <p class="setting-hint">Close the printer cover to continue.</p>
+        <button class="btn-disconnect" onclick={handleDisconnect}>Disconnect</button>
+      {:else if serialStatus === 'paperempty'}
+        <p class="setting-hint">Load paper into the printer to continue.</p>
+        <button class="btn-disconnect" onclick={handleDisconnect}>Disconnect</button>
+      {:else if serialStatus === 'online' || serialStatus === 'offline'}
+        <button class="btn-disconnect" onclick={handleDisconnect}>Disconnect</button>
+      {:else}
+        <button
+          class="btn-connect"
+          onclick={handleConnect}
+          disabled={serialStatus === 'connecting'}
+        >
+          {serialStatus === 'connecting' ? 'Connecting…' : 'Connect to printer'}
+        </button>
+      {/if}
+    </div>
+
     <!-- Paper width presets -->
     <div class="setting-group">
       <!-- This is a group label (not a <label for=...>) — it describes a button group.
@@ -286,5 +355,84 @@
     height: 16px;
     cursor: pointer;
     accent-color: var(--rd-color-accent);
+  }
+
+  /* ── Printer connection ─────────────────────────────────────────────── */
+
+  .connection-status {
+    display: flex;
+    align-items: center;
+    gap: var(--rd-space-2);
+    font-size: var(--rd-font-sm);
+    color: var(--rd-color-text-muted);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--rd-radius-full);
+    background-color: var(--rd-color-text-muted);
+    flex-shrink: 0;
+    transition: background-color var(--rd-transition-fast);
+  }
+
+  .connection-status.is-online .status-dot {
+    background-color: var(--rd-color-success);
+  }
+
+  .connection-status.is-online .status-text {
+    color: var(--rd-color-success);
+  }
+
+  .connection-status.is-warning .status-dot {
+    background-color: var(--rd-color-warning);
+  }
+
+  .connection-status.is-warning .status-text {
+    color: var(--rd-color-warning);
+  }
+
+  .connection-status.is-offline .status-dot {
+    background-color: var(--rd-color-error);
+  }
+
+  .connection-status.is-offline .status-text {
+    color: var(--rd-color-error);
+  }
+
+  .btn-connect,
+  .btn-disconnect {
+    padding: var(--rd-space-2) var(--rd-space-3);
+    border-radius: var(--rd-radius-sm);
+    font-size: var(--rd-font-sm);
+    font-weight: var(--rd-font-weight-medium);
+    cursor: pointer;
+    width: 100%;
+    transition: background-color var(--rd-transition-fast);
+  }
+
+  .btn-connect {
+    background-color: var(--rd-color-accent);
+    color: var(--rd-color-text-inverse);
+    border: none;
+  }
+
+  .btn-connect:hover:not(:disabled) {
+    background-color: var(--rd-color-accent-hover);
+  }
+
+  .btn-connect:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-disconnect {
+    background: none;
+    border: 1px solid var(--rd-color-border-strong);
+    color: var(--rd-color-text-secondary);
+  }
+
+  .btn-disconnect:hover {
+    background-color: var(--rd-color-bg-tertiary);
   }
 </style>

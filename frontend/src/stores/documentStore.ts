@@ -1,7 +1,8 @@
 import { writable, derived, get } from 'svelte/store';
 import { getAdapter } from './adapterStore';
 import { DEFAULT_PRINTER_SETTINGS } from '$types/index';
-import type { ReceiptDocument, PrinterSettings } from '$types/index';
+import type { LocalReceiptDocument, PrinterSettings } from '$types/index';
+import { loadCsvFromDocument, clearCsv } from './placeholderStore';
 
 /**
  * documentStore manages the document list and the currently selected document.
@@ -17,7 +18,7 @@ import type { ReceiptDocument, PrinterSettings } from '$types/index';
  */
 
 // Full list of all saved documents
-const _documents = writable<ReceiptDocument[]>([]);
+const _documents = writable<LocalReceiptDocument[]>([]);
 
 // ID of the currently open document (null = nothing open or scratch mode)
 const _currentId = writable<string | null>(null);
@@ -82,6 +83,20 @@ export const loadError = { subscribe: _loadError.subscribe };
 export const isScratch = { subscribe: _isScratch.subscribe };
 
 // ---------------------------------------------------------------------------
+// Synchronous getters (for use in non-reactive contexts)
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the current document ID synchronously.
+ * Used by placeholderStore to guard CSV persist calls — avoids calling
+ * saveCurrentDocument when no document is open (e.g. scratch mode), which
+ * would otherwise write a spurious 'No document is currently open' error.
+ */
+export function getCurrentId(): string | null {
+  return get(_currentId);
+}
+
+// ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 
@@ -94,7 +109,9 @@ export async function loadDocuments(): Promise<void> {
   try {
     const adapter = getAdapter();
     const docs = await adapter.listDocuments();
-    _documents.set(docs);
+    // Cast is safe: LocalReceiptDocument extends ReceiptDocument; the extra
+    // csvRows/csvMode fields are optional and will be undefined for adapter-returned docs.
+    _documents.set(docs as LocalReceiptDocument[]);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to load documents';
     _loadError.set(message);
@@ -111,6 +128,7 @@ export function openScratch(): void {
   _currentId.set(null);
   _isScratch.set(true);
   _isDirty.set(false);
+  clearCsv();
 }
 
 /**
@@ -133,7 +151,7 @@ export async function saveAsScratch(
       tags: [],
       folderId: null,
     });
-    _documents.update((docs) => [...docs, newDoc]);
+    _documents.update((docs) => [...docs, newDoc as LocalReceiptDocument]);
     _currentId.set(newDoc.id);
     _isScratch.set(false);
     _isDirty.set(false);
@@ -160,7 +178,7 @@ export async function createDocument(name = 'Untitled'): Promise<void> {
       tags: [],
       folderId: null,
     });
-    _documents.update((docs) => [...docs, newDoc]);
+    _documents.update((docs) => [...docs, newDoc as LocalReceiptDocument]);
     _currentId.set(newDoc.id);
     _isScratch.set(false);
     _isDirty.set(false);
@@ -172,21 +190,14 @@ export async function createDocument(name = 'Untitled'): Promise<void> {
 }
 
 /**
- * Select a document by ID — loads it into the editor.
- * Clears scratch mode and the dirty flag.
- */
-export function selectDocument(id: string): void {
-  _currentId.set(id);
-  _isScratch.set(false);
-  _isDirty.set(false);
-}
-
-/**
  * Save the currently open document with new content and/or printer settings.
  * Updates both the adapter and the in-memory store.
+ *
+ * `csvRows` and `csvMode` are local-only fields (not sent to the adapter).
+ * When present in `updates` they are applied to the in-memory store only.
  */
 export async function saveCurrentDocument(
-  updates: Partial<Omit<ReceiptDocument, 'id' | 'createdAt' | 'isTemplate'>>,
+  updates: Partial<Omit<LocalReceiptDocument, 'id' | 'createdAt' | 'isTemplate'>>,
 ): Promise<void> {
   _error.set(null);
 
@@ -199,8 +210,20 @@ export async function saveCurrentDocument(
 
   try {
     const adapter = getAdapter();
-    const updated = await adapter.updateDocument(currentId, updates);
-    _documents.update((docs) => docs.map((d) => (d.id === currentId ? updated : d)));
+    // Strip local-only fields before sending to the adapter.
+    const { csvRows, csvMode, ...adapterUpdates } = updates;
+    const updated = await adapter.updateDocument(currentId, adapterUpdates);
+    _documents.update((docs) =>
+      docs.map((d) => {
+        if (d.id !== currentId) return d;
+        // Merge the adapter response (which lacks csvRows/csvMode) back with any
+        // local-only fields so the in-memory document stays complete.
+        const merged: LocalReceiptDocument = { ...updated };
+        if (csvRows !== undefined) merged.csvRows = csvRows;
+        if (csvMode !== undefined) merged.csvMode = csvMode;
+        return merged;
+      }),
+    );
     _isDirty.set(false);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to save document';
@@ -245,6 +268,23 @@ export function markDirty(): void {
 }
 
 /**
+ * Select a document by ID — loads it into the editor.
+ * Clears scratch mode and the dirty flag.
+ * Restores any persisted CSV rows and mode from the document.
+ */
+export function selectDocument(id: string): void {
+  _currentId.set(id);
+  _isScratch.set(false);
+  _isDirty.set(false);
+  const doc = get(_documents).find((d) => d.id === id);
+  if (doc !== undefined) {
+    loadCsvFromDocument(doc);
+  } else {
+    clearCsv();
+  }
+}
+
+/**
  * Rename the currently open document.
  */
 export async function renameDocument(newName: string): Promise<void> {
@@ -261,7 +301,13 @@ export async function renameDocumentById(id: string, newName: string): Promise<v
   try {
     const adapter = getAdapter();
     const updated = await adapter.updateDocument(id, { name: newName });
-    _documents.update((docs) => docs.map((d) => (d.id === id ? updated : d)));
+    _documents.update((docs) =>
+      docs.map((d) => {
+        if (d.id !== id) return d;
+        // Preserve local-only fields (csvRows, csvMode) when merging adapter response.
+        return { ...d, ...updated };
+      }),
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to rename document';
     _error.set(message);
@@ -308,7 +354,13 @@ export async function moveDocumentToFolder(docId: string, folderId: string | nul
       // For non-current docs, update the in-memory list directly to avoid a
       // full round-trip to the adapter.
       const updated = await adapter.updateDocument(docId, { folderId });
-      _documents.update((docs) => docs.map((d) => (d.id === docId ? updated : d)));
+      _documents.update((docs) =>
+        docs.map((d) => {
+          if (d.id !== docId) return d;
+          // Preserve local-only fields (csvRows, csvMode) when merging adapter response.
+          return { ...d, ...updated };
+        }),
+      );
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to move document';

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { toSVG, toPNG } from '$lib/receiptjs';
+  import { resolve } from '$lib/variables';
   import { editorContent, printerSettings } from '$store/editorStore';
   import { currentDocument, autoSaveIfDirty } from '$store/documentStore';
+  import { csvRows, csvMode, previewRowIndex } from '$store/placeholderStore';
 
   // Delay before revoking a blob object URL — long enough for the download to start.
   const REVOKE_OBJECT_URL_DELAY_MS = 1000;
@@ -9,6 +11,30 @@
   let isExportingSvg = $state(false);
   let isExportingPng = $state(false);
   let errorMessage = $state<string | null>(null);
+
+  /**
+   * Compute the effective content to export — the same resolution logic used by
+   * Preview.svelte so the exported file always matches what the user sees.
+   *
+   * - Batch mode: resolve with the row currently shown in the preview.
+   * - Line-item mode: resolve with all rows as the {{#items}} block.
+   * - No CSV: export the raw editor content as-is.
+   */
+  function getEffectiveContent(): string {
+    const content = $editorContent;
+    const rows = $csvRows;
+    const mode = $csvMode;
+    const rowIndex = $previewRowIndex;
+
+    if (mode === 'batch' && rows.length > 0) {
+      const row = rows[rowIndex] ?? rows[0] ?? {};
+      return resolve(content, { scalars: row });
+    }
+    if (mode === 'line-item' && rows.length > 0) {
+      return resolve(content, { items: rows });
+    }
+    return content;
+  }
 
   /**
    * Download a string or URL as a file in the browser.
@@ -49,7 +75,7 @@
     isExportingSvg = true;
     errorMessage = null;
     try {
-      const svg = await toSVG($editorContent, $printerSettings);
+      const svg = await toSVG(getEffectiveContent(), $printerSettings);
       if (svg === '') {
         errorMessage = 'Receipt.js is not loaded. Cannot export SVG.';
         return;
@@ -68,7 +94,7 @@
     isExportingPng = true;
     errorMessage = null;
     try {
-      const dataUrl = await toPNG($editorContent, $printerSettings);
+      const dataUrl = await toPNG(getEffectiveContent(), $printerSettings);
       downloadDataUrl(dataUrl, getFilename('png'));
     } catch (err) {
       errorMessage = err instanceof Error ? err.message : 'PNG export failed';
