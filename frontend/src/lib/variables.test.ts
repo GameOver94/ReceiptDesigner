@@ -55,6 +55,11 @@ describe('detectPlaceholders', () => {
     expect(result).not.toContain('#items');
     expect(result).not.toContain('/items');
   });
+
+  it('returns empty array for a block with no inner scalar fields', () => {
+    // A block that contains no {{field}} placeholders inside it should return []
+    expect(detectPlaceholders('{{#items}}{{/items}}')).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------

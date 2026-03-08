@@ -3,6 +3,7 @@
   import { EditorState } from '@codemirror/state';
   import { editorExtensions } from '$lib/codemirror/editorSetup';
   import { editorContent } from '$store/editorStore';
+  import CsvDataTable from './CsvDataTable.svelte';
 
   // The CodeMirror EditorView instance — not reactive state, just a reference
   // We keep it in a regular `let` because we don't need Svelte to track it.
@@ -75,6 +76,8 @@
   </div>
   <!-- CodeMirror mounts into this div via the initEditor action -->
   <div class="editor-container" use:initEditor></div>
+  <!-- CSV data table — rendered below the editor when a CSV is loaded -->
+  <CsvDataTable />
 </section>
 
 <style>

@@ -46,6 +46,25 @@ export interface ReceiptDocument {
   isTemplate: boolean; // derived: true when content contains {{
 }
 
+/**
+ * Extended document type used by local (demo-mode) storage only.
+ * Adds CSV state that is persisted in localStorage but never sent to the server —
+ * the server stores content as an opaque string and knows nothing about CSV.
+ * See docs/design.md §7.1.
+ */
+export interface LocalReceiptDocument extends ReceiptDocument {
+  /**
+   * CSV rows last loaded for this document (persisted so they survive page reload).
+   * Excluded from ApiAdapter payloads — server stores content as opaque string.
+   */
+  csvRows?: Record<string, string>[];
+  /**
+   * CSV mode last set for this document — null when no CSV is loaded.
+   * Excluded from ApiAdapter payloads — server stores content as opaque string.
+   */
+  csvMode?: 'batch' | 'line-item' | null;
+}
+
 // ---------------------------------------------------------------------------
 // Placeholder metadata
 // ---------------------------------------------------------------------------

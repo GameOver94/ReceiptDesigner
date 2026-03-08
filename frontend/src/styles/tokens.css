@@ -84,7 +84,10 @@
 
   /* --------------------------------------------------------------------------
    * Spacing (multiples of 4 px)
+   * --rd-space-px: a single physical pixel, used for hairline borders/padding
+   * where a full 4 px step would be too large (e.g. pill badges, inline code).
    * ---------------------------------------------------------------------- */
+  --rd-space-px: 1px;
   --rd-space-1: 4px;
   --rd-space-2: 8px;
   --rd-space-3: 12px;
@@ -118,6 +121,28 @@
   --rd-sidebar-width: 240px;
   --rd-sidebar-collapsed-width: 48px;
   --rd-printer-panel-width: 260px;
+  --rd-csv-panel-height: 180px;
+
+  /* Indent applied to documents nested inside a folder in the sidebar. */
+  --rd-doc-indent: 24px;
+
+  /* Width of the active-selection indicator border on sidebar rows. */
+  --rd-border-indicator-width: 3px;
+
+  /* Width of the status-dot used in the printer connection indicator. */
+  --rd-status-dot-size: 8px;
+
+  /* Fixed width of the "Required" column in PlaceholderMetaEditor. */
+  --rd-required-col-width: 80px;
+
+  /* --------------------------------------------------------------------------
+   * Z-index scale
+   * All z-index values must reference these tokens to prevent stacking conflicts.
+   * ---------------------------------------------------------------------- */
+  --rd-z-topbar: 10;
+  --rd-z-dropdown: 200;
+  --rd-z-banner: 20;
+  --rd-z-modal: 300;
 
   /* --------------------------------------------------------------------------
    * Transition
