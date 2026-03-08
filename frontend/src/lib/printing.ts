@@ -1,5 +1,4 @@
-import { resolve } from './variables';
-import { settingsToOptions, toCommand } from './receiptjs';
+import { toEscPos } from './pipeline';
 import type { PrintResult, PrinterSettings } from '$types/index';
 
 /**
@@ -136,11 +135,6 @@ function _setStatus(s: SerialStatus): void {
 // ---------------------------------------------------------------------------
 // Public connection management API
 // ---------------------------------------------------------------------------
-
-/** Get the current serial connection status without subscribing. */
-export function getSerialStatus(): SerialStatus {
-  return _currentStatus;
-}
 
 /**
  * Subscribe to serial connection status changes.
@@ -298,21 +292,13 @@ export async function print(
     return { status: 'error', message: 'Serial port is not writable.' };
   }
 
-  const options = settingsToOptions(settings);
-
-  let escposCommand: string;
+  let bytes: Uint8Array;
   try {
-    escposCommand = await toCommand(resolvedContent, options);
+    bytes = await toEscPos(resolvedContent, settings);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to generate ESC/POS command';
-    if (import.meta.env.DEV) console.error('[printing] toCommand error:', err);
+    if (import.meta.env.DEV) console.error('[printing] toEscPos error:', err);
     return { status: 'error', message };
-  }
-
-  // Convert the binary string returned by toCommand() to a Uint8Array.
-  const bytes = new Uint8Array(escposCommand.length);
-  for (let i = 0; i < escposCommand.length; i++) {
-    bytes[i] = escposCommand.charCodeAt(i) & 0xff;
   }
 
   const writer = port.writable.getWriter();
@@ -326,24 +312,6 @@ export async function print(
   } finally {
     writer.releaseLock();
   }
-}
-
-/**
- * Resolve placeholders then print.
- *
- * @param rawContent - ReceiptLine content containing {{field}} placeholders
- * @param data       - Scalar values and/or line items to resolve
- * @param settings   - Printer settings for ESC/POS generation
- * @param printerId  - Optional server printer ID (production mode only)
- */
-export async function printResolved(
-  rawContent: string,
-  data: { scalars?: Record<string, string>; items?: Record<string, string>[] },
-  settings: PrinterSettings,
-  printerId?: string,
-): Promise<PrintResult> {
-  const resolved = resolve(rawContent, data);
-  return print(resolved, settings, printerId);
 }
 
 /**

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
   import { printerSettings, updatePrinterSettings } from '$store/editorStore';
   import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
   import type { SerialStatus } from '$lib/printing';
@@ -82,10 +81,12 @@
 
   let serialStatus = $state<SerialStatus>('disconnected');
 
-  const _unsubStatus = subscribeSerialStatus((s) => {
-    serialStatus = s;
+  $effect(() => {
+    const unsub = subscribeSerialStatus((s) => {
+      serialStatus = s;
+    });
+    return unsub;
   });
-  onDestroy(_unsubStatus);
 
   const STATUS_LABEL: Record<SerialStatus, string> = {
     unsupported: 'Not supported',
@@ -351,8 +352,8 @@
   }
 
   .checkbox-label input[type='checkbox'] {
-    width: 16px;
-    height: 16px;
+    width: var(--rd-space-4);
+    height: var(--rd-space-4);
     cursor: pointer;
     accent-color: var(--rd-color-accent);
   }
@@ -368,8 +369,8 @@
   }
 
   .status-dot {
-    width: 8px;
-    height: 8px;
+    width: var(--rd-status-dot-size);
+    height: var(--rd-status-dot-size);
     border-radius: var(--rd-radius-full);
     background-color: var(--rd-color-text-muted);
     flex-shrink: 0;

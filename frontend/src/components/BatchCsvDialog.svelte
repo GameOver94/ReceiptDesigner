@@ -226,7 +226,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: var(--rd-z-modal);
   }
 
   .modal-dialog {
@@ -383,7 +383,7 @@
     font-size: var(--rd-font-sm);
     background-color: var(--rd-color-placeholder-bg);
     color: var(--rd-color-placeholder);
-    padding: 1px var(--rd-space-1);
+    padding: var(--rd-space-px) var(--rd-space-1);
     border-radius: var(--rd-radius-sm);
   }
 

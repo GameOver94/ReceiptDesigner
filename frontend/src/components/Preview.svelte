@@ -1,6 +1,6 @@
 <script lang="ts">
   import { toSVGDebounced, toSVG, isReceiptJsLoaded } from '$lib/receiptjs';
-  import { resolve } from '$lib/variables';
+  import { resolveContent } from '$lib/pipeline';
   import { editorContent, printerSettings } from '$store/editorStore';
   import { csvRows, csvMode, previewRowIndex, setPreviewRowIndex } from '$store/placeholderStore';
 
@@ -11,11 +11,13 @@
 
   /**
    * $effect runs whenever editorContent, printerSettings, csvRows, csvMode, or
-   * previewRowIndex changes. It computes the effective content to render:
+   * previewRowIndex changes. It resolves the effective content via the pipeline,
+   * then renders it to SVG.
    *
-   *   - batch mode: resolve the content with the row at previewRowIndex
-   *   - line-item mode: resolve the content with all rows as {{#items}}
-   *   - no CSV: render the raw editor content
+   * resolveContent() with singleRow=true returns exactly one string:
+   *   - batch mode:     the row at previewRowIndex, resolved as scalars
+   *   - line-item mode: all rows resolved into the {{#items}} block
+   *   - no CSV:         the raw editor content
    *
    * Why $effect and not $derived?
    * This is a side effect — we are calling an external library (Receipt.js) and
@@ -36,14 +38,11 @@
 
     if (!isReceiptLoaded) return;
 
-    let effectiveContent: string;
+    // Resolve through the unified pipeline. singleRow=true so the preview always
+    // shows the row at rowIndex rather than all batch rows at once.
+    const [effectiveContent = content] = resolveContent(content, rows, mode, rowIndex, true);
 
     if (mode === 'batch' && rows.length > 0) {
-      // Batch mode: show the resolved content for the currently selected row.
-      // The row index is 0-based; setPreviewRowIndex clamps it to a valid range.
-      const row = rows[rowIndex] ?? rows[0] ?? {};
-      effectiveContent = resolve(content, { scalars: row });
-
       // In batch mode we want immediate feedback when navigating rows,
       // so skip debounce and render straight away.
       toSVG(effectiveContent, settings)
@@ -54,11 +53,6 @@
           if (import.meta.env.DEV) console.error('[Preview] toSVG batch error:', err);
         });
       return;
-    } else if (mode === 'line-item' && rows.length > 0) {
-      // Line-item mode: all rows form the {{#items}} block for a single receipt.
-      effectiveContent = resolve(content, { items: rows });
-    } else {
-      effectiveContent = content;
     }
 
     toSVGDebounced(effectiveContent, settings, (svg) => {
@@ -192,7 +186,7 @@
     font-size: var(--rd-font-sm);
     color: var(--rd-color-placeholder);
     background-color: var(--rd-color-placeholder-bg);
-    padding: 1px var(--rd-space-2);
+    padding: var(--rd-space-px) var(--rd-space-2);
     border-radius: var(--rd-radius-full);
     font-weight: var(--rd-font-weight-medium);
   }
@@ -223,7 +217,7 @@
     font-family: var(--rd-font-mono);
     font-size: var(--rd-font-sm);
     background-color: var(--rd-color-bg-tertiary);
-    padding: 1px var(--rd-space-1);
+    padding: var(--rd-space-px) var(--rd-space-1);
     border-radius: var(--rd-radius-sm);
   }
 
@@ -286,7 +280,7 @@
   .row-indicator {
     font-size: var(--rd-font-sm);
     color: var(--rd-color-text-secondary);
-    min-width: 80px;
+    min-width: var(--rd-required-col-width);
     text-align: center;
   }
 </style>

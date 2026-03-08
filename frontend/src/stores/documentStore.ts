@@ -60,9 +60,6 @@ export const currentDocument = derived(
   ([$docs, $id]) => $docs.find((d) => d.id === $id) ?? null,
 );
 
-/** Subset of documents that are templates (content contains {{). */
-export const templateDocuments = derived(_documents, ($docs) => $docs.filter((d) => d.isTemplate));
-
 /** Whether the currently open document has unsaved changes. */
 export const isDirty = { subscribe: _isDirty.subscribe };
 
@@ -367,15 +364,6 @@ export async function moveDocumentToFolder(docId: string, folderId: string | nul
     _error.set(message);
     if (import.meta.env.DEV) console.error('[documentStore] moveDocumentToFolder:', err);
   }
-}
-
-/**
- * Clear the current document selection (e.g., after deleting it).
- */
-export function clearSelection(): void {
-  _currentId.set(null);
-  _isScratch.set(false);
-  _isDirty.set(false);
 }
 
 /**

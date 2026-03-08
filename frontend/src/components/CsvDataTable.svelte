@@ -162,7 +162,7 @@
   }
 
   .csv-mode-btn {
-    padding: 1px var(--rd-space-2);
+    padding: var(--rd-space-px) var(--rd-space-2);
     font-size: var(--rd-font-sm);
     font-weight: var(--rd-font-weight-medium);
     font-family: var(--rd-font-ui);
@@ -193,7 +193,7 @@
   .csv-row-count {
     font-size: var(--rd-font-sm);
     font-weight: var(--rd-font-weight-medium);
-    padding: 1px var(--rd-space-2);
+    padding: var(--rd-space-px) var(--rd-space-2);
     background-color: var(--rd-color-bg-tertiary);
     color: var(--rd-color-text-secondary);
     border-radius: var(--rd-radius-full);
@@ -208,7 +208,7 @@
 
   /* Small ghost-style action buttons (Load CSV / Replace CSV / Clear) */
   .csv-action-btn {
-    padding: 1px var(--rd-space-2);
+    padding: var(--rd-space-px) var(--rd-space-2);
     font-size: var(--rd-font-sm);
     font-weight: var(--rd-font-weight-medium);
     font-family: var(--rd-font-ui);

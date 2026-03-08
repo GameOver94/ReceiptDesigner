@@ -158,7 +158,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: var(--rd-z-modal);
   }
 
   .modal-dialog {
@@ -200,7 +200,7 @@
   .table-header,
   .table-row {
     display: grid;
-    grid-template-columns: 1fr 1.5fr 1.5fr 80px;
+    grid-template-columns: 1fr 1.5fr 1.5fr var(--rd-required-col-width);
     gap: var(--rd-space-2);
     align-items: center;
   }

@@ -92,7 +92,3 @@ export const appSettings = { subscribe: _settings.subscribe };
 export function updateSettings(partial: Partial<AppSettings>): void {
   _settings.update((current) => ({ ...current, ...partial }));
 }
-
-export function resetSettings(): void {
-  _settings.set(DEFAULT_SETTINGS);
-}

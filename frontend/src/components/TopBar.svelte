@@ -21,7 +21,8 @@
   } from '$store/placeholderStore';
   import { print, printBatch } from '$lib/printing';
   import { doNew, doSaveAs, doRename, doSave, doDelete, doRevert } from '$lib/topBarActions';
-  import { isTemplate, resolve } from '$lib/variables';
+  import { isTemplate } from '$lib/variables';
+  import { resolveContent } from '$lib/pipeline';
   import type { PlaceholderMeta } from '$types/index';
 
   let isSaving = $state(false);
@@ -164,7 +165,7 @@
   // ---------------------------------------------------------------------------
 
   /**
-   * "Fill & Print" — resolves placeholders and prints.
+   * "Fill & Print" — resolves placeholders via the unified pipeline and prints.
    *
    * - batch mode CSV: prints one receipt per CSV row (all rows), using each
    *   row's columns as scalar values.
@@ -176,12 +177,19 @@
     const mode = $csvMode;
     const rows = $csvRows;
 
+    // Build meta-default scalar overrides (used by line-item and no-CSV paths).
+    const defaultScalars: Record<string, string> = {};
+    for (const name of $detectedPlaceholders) {
+      const metaEntry = currentMeta.find((m) => m.name === name);
+      if (metaEntry?.defaultValue !== undefined && metaEntry.defaultValue !== '') {
+        defaultScalars[name] = metaEntry.defaultValue;
+      }
+    }
+
     if (mode === 'batch' && rows.length > 0) {
-      // One receipt per CSV row — each row's columns become scalar values.
-      const jobs = rows.map((row) => ({
-        content: resolve(content, { scalars: row }),
-        settings: $printerSettings,
-      }));
+      // One receipt per CSV row — resolveContent returns all rows as an array.
+      const resolved = resolveContent(content, rows, mode, 0, false, defaultScalars);
+      const jobs = resolved.map((c) => ({ content: c, settings: $printerSettings }));
       printStatusMessage = null;
       try {
         const results = await printBatch(jobs);
@@ -202,16 +210,8 @@
       return;
     }
 
-    // Line-item mode or no CSV: build scalars from defaultValues + items from CSV.
-    const scalars: Record<string, string> = {};
-    for (const name of $detectedPlaceholders) {
-      const metaEntry = currentMeta.find((m) => m.name === name);
-      if (metaEntry?.defaultValue !== undefined && metaEntry.defaultValue !== '') {
-        scalars[name] = metaEntry.defaultValue;
-      }
-    }
-    const items = mode === 'line-item' && rows.length > 0 ? rows : undefined;
-    const resolved = resolve(content, { scalars, items });
+    // Line-item mode or no CSV: resolveContent returns a single resolved string.
+    const [resolved = content] = resolveContent(content, rows, mode, 0, false, defaultScalars);
     await _doPrint(resolved);
   }
 
@@ -452,7 +452,7 @@
     border-bottom: 1px solid var(--rd-color-border);
     box-shadow: var(--rd-shadow-sm);
     position: relative;
-    z-index: 10;
+    z-index: var(--rd-z-topbar);
   }
 
   .top-bar-left {
@@ -471,7 +471,7 @@
   .mode-badge {
     font-size: var(--rd-font-sm);
     font-weight: var(--rd-font-weight-medium);
-    padding: 2px var(--rd-space-2);
+    padding: var(--rd-space-px) var(--rd-space-2);
     background-color: var(--rd-color-accent-light);
     color: var(--rd-color-accent);
     border-radius: var(--rd-radius-full);
@@ -529,7 +529,7 @@
   .template-badge {
     font-size: var(--rd-font-sm);
     font-weight: var(--rd-font-weight-medium);
-    padding: 2px var(--rd-space-2);
+    padding: var(--rd-space-px) var(--rd-space-2);
     background-color: var(--rd-color-placeholder-bg);
     color: var(--rd-color-placeholder);
     border-radius: var(--rd-radius-full);
@@ -562,7 +562,7 @@
     border-radius: var(--rd-radius-sm);
     font-size: var(--rd-font-sm);
     white-space: nowrap;
-    z-index: 20;
+    z-index: var(--rd-z-banner);
   }
 
   .status-banner {
@@ -576,7 +576,7 @@
     border-radius: var(--rd-radius-sm);
     font-size: var(--rd-font-sm);
     white-space: nowrap;
-    z-index: 20;
+    z-index: var(--rd-z-banner);
     display: flex;
     align-items: center;
     gap: var(--rd-space-3);
