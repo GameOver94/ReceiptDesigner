@@ -54,6 +54,12 @@
   function updateRow(index: number, patch: Partial<PlaceholderMeta>): void {
     rows = rows.map((row, i) => (i === index ? { ...row, ...patch } : row));
   }
+
+  // Auto-focus the dialog container when it opens so focus moves into the
+  // modal for keyboard and screen reader users (ARIA modal pattern).
+  function focusDialog(node: HTMLDivElement): void {
+    node.focus();
+  }
 </script>
 
 <!-- Backdrop -->
@@ -73,6 +79,7 @@
     tabindex="-1"
     onclick={(e) => e.stopPropagation()}
     onkeydown={handleKeydown}
+    use:focusDialog
   >
     <h2 class="modal-title" id="meta-editor-title">Edit template fields</h2>
     <p class="modal-description">

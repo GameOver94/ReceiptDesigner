@@ -162,6 +162,12 @@ export function connectSerial(): void {
   if (_currentStatus === 'connecting') return;
   if (_port !== null && _currentStatus === 'online') return;
 
+  // If a port is already open but not online (e.g. 'offline', 'coveropen'),
+  // close it before requesting a new one to prevent leaking the OS serial resource.
+  if (_port !== null) {
+    disconnectSerial();
+  }
+
   _setStatus('connecting');
 
   navigator.serial
@@ -268,10 +274,15 @@ export async function print(
     };
   }
 
-  // Auto-connect if not already connected. connectSerial() is async internally
-  // but returns void — we poll _currentStatus below.
-  if (_port === null || _currentStatus !== 'online') {
+  // Auto-connect if not already connected. Only open the port picker when we
+  // have no port; if a port is open but the printer isn't ready, tell the user.
+  if (_port === null) {
     connectSerial();
+  } else if (_currentStatus !== 'online') {
+    return {
+      status: 'error',
+      message: `Printer is not ready (status: ${_currentStatus}). Check the printer and try again.`,
+    };
   }
 
   // Wait for the port to open (up to 15 s). connectSerial() resolves async.
@@ -363,7 +374,13 @@ function _waitForOnline(timeoutMs: number): Promise<boolean> {
         clearTimeout(timer);
         _statusListeners.delete(onStatus);
         res(true);
-      } else if (s === 'error' || s === 'disconnected' || s === 'coveropen' || s === 'paperempty') {
+      } else if (
+        s === 'error' ||
+        s === 'disconnected' ||
+        s === 'offline' ||
+        s === 'coveropen' ||
+        s === 'paperempty'
+      ) {
         settled = true;
         clearTimeout(timer);
         _statusListeners.delete(onStatus);

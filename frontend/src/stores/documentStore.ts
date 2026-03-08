@@ -213,9 +213,11 @@ export async function saveCurrentDocument(
     _documents.update((docs) =>
       docs.map((d) => {
         if (d.id !== currentId) return d;
-        // Merge the adapter response (which lacks csvRows/csvMode) back with any
-        // local-only fields so the in-memory document stays complete.
-        const merged: LocalReceiptDocument = { ...updated };
+        // Preserve existing local-only fields (csvRows/csvMode) from the in-memory
+        // document, then layer the adapter response on top, then apply any new
+        // csvRows/csvMode from this update call. This prevents unrelated saves
+        // (e.g. content auto-save, rename) from silently discarding CSV state.
+        const merged: LocalReceiptDocument = { ...d, ...updated };
         if (csvRows !== undefined) merged.csvRows = csvRows;
         if (csvMode !== undefined) merged.csvMode = csvMode;
         return merged;

@@ -58,10 +58,11 @@ import type { PrinterSettings } from '$types/index';
  * @param singleRow   - When true and csvMode === 'batch', return only the row at rowIndex
  *                      (used by Preview to show one row at a time). When false (default),
  *                      return all rows (used by print/export to process the full batch).
- * @param scalars     - Optional map of extra scalar values to apply after CSV resolution.
- *                      Used by TopBar to inject PlaceholderMeta defaultValues on top of
- *                      any CSV data. Applied to the fully-resolved string(s) at the end,
- *                      so they can fill in placeholders not covered by the CSV.
+ * @param scalars     - Optional map of extra scalar values to layer under any CSV data.
+ *                      Used by TopBar to inject PlaceholderMeta defaultValues alongside
+ *                      the currently selected CSV row (batch mode) or with items /
+ *                      standalone content (line-item / no CSV). CSV values take
+ *                      precedence over these scalars when both define the same key.
  */
 export function resolveContent(
   rawContent: string,

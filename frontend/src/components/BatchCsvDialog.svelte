@@ -99,6 +99,12 @@
   function handleKeydown(e: KeyboardEvent): void {
     if (e.key === 'Escape') oncancel();
   }
+
+  // Auto-focus the dialog container when it opens so focus moves into the
+  // modal for keyboard and screen reader users (ARIA modal pattern).
+  function focusDialog(node: HTMLDivElement): void {
+    node.focus();
+  }
 </script>
 
 <!-- Backdrop -->
@@ -118,6 +124,7 @@
     tabindex="-1"
     onclick={(e) => e.stopPropagation()}
     onkeydown={handleKeydown}
+    use:focusDialog
   >
     <h2 class="modal-title" id="batch-csv-title">Load CSV data</h2>
 

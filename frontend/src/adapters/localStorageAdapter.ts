@@ -1,4 +1,4 @@
-import type { Folder, ReceiptDocument } from '$types/index';
+import type { Folder, LocalReceiptDocument, ReceiptDocument } from '$types/index';
 import type { StorageAdapter } from './types';
 
 // localStorage keys
@@ -57,7 +57,7 @@ export class LocalStorageAdapter implements StorageAdapter {
       // confirmed it is an array; isReceiptDocument validates each element's shape.
       return (
         parsed as Array<
-          Omit<ReceiptDocument, 'folderId' | 'csvRows' | 'csvMode'> & {
+          Omit<LocalReceiptDocument, 'folderId' | 'csvRows' | 'csvMode'> & {
             folderId?: string | null;
             csvRows?: Record<string, string>[];
             csvMode?: 'batch' | 'line-item' | null;
