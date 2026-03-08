@@ -643,7 +643,7 @@
   .folder-item {
     display: flex;
     align-items: center;
-    border-left: 3px solid transparent;
+    border-left: var(--rd-border-indicator-width) solid transparent;
     transition: background-color var(--rd-transition-fast);
     user-select: none;
   }
@@ -700,11 +700,11 @@
     padding: var(--rd-space-2) var(--rd-space-3);
     cursor: pointer;
     transition: background-color var(--rd-transition-fast);
-    border-left: 3px solid transparent;
+    border-left: var(--rd-border-indicator-width) solid transparent;
   }
 
   .doc-item--indented {
-    padding-left: calc(var(--rd-space-3) + 24px);
+    padding-left: calc(var(--rd-space-3) + var(--rd-doc-indent));
   }
 
   .doc-item:hover {
@@ -768,7 +768,7 @@
     list-style: none;
     padding: var(--rd-space-1) 0;
     min-width: 160px;
-    z-index: 200;
+    z-index: var(--rd-z-dropdown);
   }
 
   .kebab-menu-item {

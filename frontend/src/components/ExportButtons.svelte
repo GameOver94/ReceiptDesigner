@@ -1,45 +1,74 @@
 <script lang="ts">
   import { toSVG, toPNG } from '$lib/receiptjs';
+  import { resolveContent, toEscPos } from '$lib/pipeline';
   import { editorContent, printerSettings } from '$store/editorStore';
   import { currentDocument, autoSaveIfDirty } from '$store/documentStore';
+  import { csvRows, csvMode, previewRowIndex } from '$store/placeholderStore';
 
   // Delay before revoking a blob object URL — long enough for the download to start.
   const REVOKE_OBJECT_URL_DELAY_MS = 1000;
 
   let isExportingSvg = $state(false);
   let isExportingPng = $state(false);
+  let isExportingEscpos = $state(false);
   let errorMessage = $state<string | null>(null);
 
   /**
-   * Download a string or URL as a file in the browser.
-   * Uses a temporary <a> element with the `download` attribute — this is
-   * the standard browser way to trigger a file download without a server.
+   * Compute the effective content to export via the unified pipeline.
+   *
+   * - Batch mode:     resolveContent returns only the row at previewRowIndex so
+   *                   the exported file matches what the user sees in the preview.
+   * - Line-item mode: resolveContent returns one string (all rows in {{#items}}).
+   * - No CSV:         returns the raw editor content unchanged.
+   *
+   * Returns the first (and usually only) element. For batch mode we intentionally
+   * use singleRow=true so the export reflects the previewed row, not all rows —
+   * "Export all rows" is the job of a batch print, not a single-file export.
    */
-  function downloadFile(content: string, filename: string, mimeType: string): void {
-    const blob = new Blob([content], { type: mimeType });
+  function getEffectiveContent(): string {
+    const resolved = resolveContent(
+      $editorContent,
+      $csvRows,
+      $csvMode,
+      $previewRowIndex,
+      true, // singleRow — export only the row currently shown in the preview
+    );
+    return resolved[0] ?? $editorContent;
+  }
+
+  /**
+   * Trigger a browser download for any data that can be represented as a Blob.
+   * - Pass a plain string for text formats (SVG, CSV).
+   * - Pass a Uint8Array for binary formats (ESC/POS .bin).
+   * - Pass a data-URL string and set `isDataUrl: true` for PNG from toPNG().
+   *
+   * A temporary <a> element with the `download` attribute is used in all cases;
+   * Blob object URLs are revoked after a short delay to avoid memory leaks.
+   */
+  function triggerDownload(
+    data: string | Uint8Array,
+    filename: string,
+    mimeType: string,
+    isDataUrl = false,
+  ): void {
+    if (isDataUrl && typeof data === 'string') {
+      const a = document.createElement('a');
+      a.href = data;
+      a.download = filename;
+      a.click();
+      return;
+    }
+    const blob = new Blob([data as BlobPart], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     a.click();
-    // Revoke the object URL after a short delay to free the memory reference.
-    // The delay ensures the download has started before the URL is revoked.
     setTimeout(() => URL.revokeObjectURL(url), REVOKE_OBJECT_URL_DELAY_MS);
-  }
-
-  /**
-   * Download a data URL (e.g. PNG from Receipt.js toPNG()) as a file.
-   */
-  function downloadDataUrl(dataUrl: string, filename: string): void {
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = filename;
-    a.click();
   }
 
   function getFilename(extension: string): string {
     const name = $currentDocument?.name ?? 'receipt';
-    // Replace characters that are invalid in filenames
     const safe = name.replace(/[/\\?%*:|"<>]/g, '-');
     return `${safe}.${extension}`;
   }
@@ -49,12 +78,12 @@
     isExportingSvg = true;
     errorMessage = null;
     try {
-      const svg = await toSVG($editorContent, $printerSettings);
+      const svg = await toSVG(getEffectiveContent(), $printerSettings);
       if (svg === '') {
         errorMessage = 'Receipt.js is not loaded. Cannot export SVG.';
         return;
       }
-      downloadFile(svg, getFilename('svg'), 'image/svg+xml');
+      triggerDownload(svg, getFilename('svg'), 'image/svg+xml');
     } catch (err) {
       errorMessage = err instanceof Error ? err.message : 'SVG export failed';
       if (import.meta.env.DEV) console.error('[ExportButtons] SVG export:', err);
@@ -68,13 +97,37 @@
     isExportingPng = true;
     errorMessage = null;
     try {
-      const dataUrl = await toPNG($editorContent, $printerSettings);
-      downloadDataUrl(dataUrl, getFilename('png'));
+      const dataUrl = await toPNG(getEffectiveContent(), $printerSettings);
+      triggerDownload(dataUrl, getFilename('png'), 'image/png', true);
     } catch (err) {
       errorMessage = err instanceof Error ? err.message : 'PNG export failed';
       if (import.meta.env.DEV) console.error('[ExportButtons] PNG export:', err);
     } finally {
       isExportingPng = false;
+    }
+  }
+
+  /**
+   * Export the raw ESC/POS binary that would be sent to the printer.
+   *
+   * Uses the identical pipeline to the real print path — resolveContent() then
+   * toEscPos() — so the .bin file is byte-for-byte identical to what the printer
+   * receives. Useful for debugging printer issues without needing a live connection.
+   *
+   *   cat receipt.bin > /dev/usb/lp0
+   */
+  async function handleExportEscpos(): Promise<void> {
+    await autoSaveIfDirty($editorContent, $printerSettings);
+    isExportingEscpos = true;
+    errorMessage = null;
+    try {
+      const bytes = await toEscPos(getEffectiveContent(), $printerSettings);
+      triggerDownload(bytes, getFilename('bin'), 'application/octet-stream');
+    } catch (err) {
+      errorMessage = err instanceof Error ? err.message : 'ESC/POS export failed';
+      if (import.meta.env.DEV) console.error('[ExportButtons] ESC/POS export:', err);
+    } finally {
+      isExportingEscpos = false;
     }
   }
 </script>
@@ -99,6 +152,17 @@
     aria-label="Export as PNG"
   >
     {isExportingPng ? 'Exporting…' : 'Export PNG'}
+  </button>
+  <button
+    class="export-btn"
+    onclick={() => {
+      void handleExportEscpos();
+    }}
+    disabled={isExportingEscpos}
+    aria-label="Export raw ESC/POS binary"
+    title="Export the raw ESC/POS bytes that would be sent to the printer"
+  >
+    {isExportingEscpos ? 'Exporting…' : 'Export ESC/POS'}
   </button>
 
   {#if errorMessage !== null}

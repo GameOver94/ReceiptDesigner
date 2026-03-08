@@ -1,6 +1,8 @@
 <script lang="ts">
-  import { toSVGDebounced, isReceiptJsLoaded } from '$lib/receiptjs';
+  import { toSVGDebounced, toSVG, isReceiptJsLoaded } from '$lib/receiptjs';
+  import { resolveContent } from '$lib/pipeline';
   import { editorContent, printerSettings } from '$store/editorStore';
+  import { csvRows, csvMode, previewRowIndex, setPreviewRowIndex } from '$store/placeholderStore';
 
   // $state() — svgOutput is reactive so the template re-renders when it changes.
   // The callback from toSVGDebounced updates this value asynchronously.
@@ -8,9 +10,14 @@
   let isReceiptLoaded = $state(isReceiptJsLoaded());
 
   /**
-   * $effect runs whenever editorContent or printerSettings changes.
-   * It calls toSVGDebounced, which waits 300 ms before rendering to avoid
-   * calling Receipt.js on every single keystroke.
+   * $effect runs whenever editorContent, printerSettings, csvRows, csvMode, or
+   * previewRowIndex changes. It resolves the effective content via the pipeline,
+   * then renders it to SVG.
+   *
+   * resolveContent() with singleRow=true returns exactly one string:
+   *   - batch mode:     the row at previewRowIndex, resolved as scalars
+   *   - line-item mode: all rows resolved into the {{#items}} block
+   *   - no CSV:         the raw editor content
    *
    * Why $effect and not $derived?
    * This is a side effect — we are calling an external library (Receipt.js) and
@@ -21,6 +28,9 @@
   $effect(() => {
     const content = $editorContent;
     const settings = $printerSettings;
+    const rows = $csvRows;
+    const mode = $csvMode;
+    const rowIndex = $previewRowIndex;
 
     // Check each render whether Receipt.js has loaded (it's a script tag,
     // so it may not be available on the very first render)
@@ -28,12 +38,47 @@
 
     if (!isReceiptLoaded) return;
 
-    toSVGDebounced(content, settings, (svg) => {
+    // Resolve through the unified pipeline. singleRow=true so the preview always
+    // shows the row at rowIndex rather than all batch rows at once.
+    const [effectiveContent = content] = resolveContent(content, rows, mode, rowIndex, true);
+
+    if (mode === 'batch' && rows.length > 0) {
+      // In batch mode we want immediate feedback when navigating rows,
+      // so skip debounce and render straight away.
+      toSVG(effectiveContent, settings)
+        .then((svg) => {
+          svgOutput = svg;
+        })
+        .catch((err: unknown) => {
+          if (import.meta.env.DEV) console.error('[Preview] toSVG batch error:', err);
+        });
+      return;
+    }
+
+    toSVGDebounced(effectiveContent, settings, (svg) => {
       svgOutput = svg;
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // Batch navigation handlers
+  // ---------------------------------------------------------------------------
+
+  function handlePrevRow(): void {
+    setPreviewRowIndex($previewRowIndex - 1);
+  }
+
+  function handleNextRow(): void {
+    setPreviewRowIndex($previewRowIndex + 1);
+  }
+
+  // Convenience derived values for the navigation bar
+  let isBatchMode = $derived($csvMode === 'batch' && $csvRows.length > 0);
+  let totalRows = $derived($csvRows.length);
+  let currentRow = $derived($previewRowIndex + 1); // 1-based for display
 </script>
 
+<!-- eslint-disable svelte/no-at-html-tags -->
 <!--
   Preview pane occupies the "preview" grid area.
   The SVG receipt is centred on a neutral grey background to suggest
@@ -42,6 +87,11 @@
 <section class="preview-pane" aria-label="Receipt preview">
   <div class="preview-toolbar">
     <span class="toolbar-label">Preview</span>
+    {#if $csvMode !== null}
+      <span class="csv-mode-label">
+        {$csvMode === 'batch' ? 'Batch mode' : 'Line-item mode'}
+      </span>
+    {/if}
   </div>
 
   <div class="preview-scroll">
@@ -72,6 +122,38 @@
       </div>
     {/if}
   </div>
+
+  <!--
+    Batch navigation bar — only shown in batch mode with multiple rows.
+    Lets the user flip through CSV rows to visually verify each receipt
+    before sending the batch to the printer.
+    See docs/design.md §10.5.
+  -->
+  {#if isBatchMode}
+    <div class="batch-nav" aria-label="Batch navigation">
+      <button
+        class="nav-btn"
+        onclick={handlePrevRow}
+        disabled={$previewRowIndex === 0}
+        aria-label="Previous row"
+      >
+        ← Prev
+      </button>
+
+      <span class="row-indicator" aria-live="polite">
+        Row {currentRow} of {totalRows}
+      </span>
+
+      <button
+        class="nav-btn"
+        onclick={handleNextRow}
+        disabled={$previewRowIndex >= totalRows - 1}
+        aria-label="Next row"
+      >
+        Next →
+      </button>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -87,6 +169,7 @@
   .preview-toolbar {
     display: flex;
     align-items: center;
+    gap: var(--rd-space-3);
     padding: var(--rd-space-2) var(--rd-space-3);
     border-bottom: 1px solid var(--rd-color-border);
     background-color: var(--rd-color-bg-secondary);
@@ -96,6 +179,15 @@
   .toolbar-label {
     font-size: var(--rd-font-sm);
     color: var(--rd-color-text-secondary);
+    font-weight: var(--rd-font-weight-medium);
+  }
+
+  .csv-mode-label {
+    font-size: var(--rd-font-sm);
+    color: var(--rd-color-placeholder);
+    background-color: var(--rd-color-placeholder-bg);
+    padding: var(--rd-space-px) var(--rd-space-2);
+    border-radius: var(--rd-radius-full);
     font-weight: var(--rd-font-weight-medium);
   }
 
@@ -125,7 +217,7 @@
     font-family: var(--rd-font-mono);
     font-size: var(--rd-font-sm);
     background-color: var(--rd-color-bg-tertiary);
-    padding: 1px var(--rd-space-1);
+    padding: var(--rd-space-px) var(--rd-space-1);
     border-radius: var(--rd-radius-sm);
   }
 
@@ -146,5 +238,49 @@
     max-width: 100%;
     height: auto;
     display: block;
+  }
+
+  /*
+   * Batch navigation bar — fixed to the bottom of the preview pane.
+   * Uses Flexbox (1D alignment) for the row of buttons + indicator.
+   */
+  .batch-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--rd-space-4);
+    padding: var(--rd-space-2) var(--rd-space-4);
+    background-color: var(--rd-color-bg-secondary);
+    border-top: 1px solid var(--rd-color-border);
+    flex-shrink: 0;
+  }
+
+  .nav-btn {
+    padding: var(--rd-space-1) var(--rd-space-3);
+    font-size: var(--rd-font-sm);
+    font-weight: var(--rd-font-weight-medium);
+    background-color: var(--rd-color-bg-primary);
+    border: 1px solid var(--rd-color-border-strong);
+    border-radius: var(--rd-radius-sm);
+    color: var(--rd-color-text-secondary);
+    cursor: pointer;
+    transition: background-color var(--rd-transition-fast);
+  }
+
+  .nav-btn:hover:not(:disabled) {
+    background-color: var(--rd-color-bg-tertiary);
+    color: var(--rd-color-text-primary);
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .row-indicator {
+    font-size: var(--rd-font-sm);
+    color: var(--rd-color-text-secondary);
+    min-width: var(--rd-required-col-width);
+    text-align: center;
   }
 </style>
