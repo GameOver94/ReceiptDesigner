@@ -749,20 +749,23 @@ settings change, it:
 
 1. Instantiates `ReceiptPrinterEncoder` with the current `PrinterSettings` (columns, language,
    printer model, codepage mapping, feed-before-cut, newline, image mode).
-2. Executes the user's encoder JS code in a sandboxed `Function` call with `encoder` as the
-   implicit variable.
+2. Executes the user's encoder JS code via a browser `Function` call with `encoder` provided in
+   document scope.
 3. Calls `encoder.encode()` to obtain a `Uint8Array` of raw ESC/POS bytes.
 4. Parses the byte stream into a structured `TextLine[]` array (per-character cell model
    matching the ReceiptPrinterPlayground layout).
+
+This execution model is **not a security sandbox**. Preview runs trusted user-authored JavaScript
+in the current page context, so code can access normal browser globals and APIs.
 
 The `Preview.svelte` component renders four tabs:
 
 | Tab | Content |
 |-----|---------|
 | **Text** | Per-character cell grid: Font A (13 × 16 px) / Font B (10 × 16 px); invert, bold, italic, underline, scale, and alignment applied per character/line |
-| **Hex** | Raw hex dump of the ESC/POS byte stream |
 | **Commands** | Decoded command list (command name, parameters, description) |
-| **Binary** | Downloadable ESC/POS `.bin` file |
+| **Encoded** | Raw encoded ESC/POS byte output shown as a hex dump |
+| **Output** | Downloadable ESC/POS output as a `.bin` file |
 
 All rendering happens in the browser — no server round-trip for preview.
 

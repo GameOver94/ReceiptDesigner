@@ -8,13 +8,13 @@ declare module '@point-of-sale/receipt-printer-encoder' {
     name: string;
   }
   const ReceiptPrinterEncoder: {
-    new (options?: Record<string, unknown>): unknown;
+    new (options?: object): unknown;
     readonly printerModels: PrinterModelEntry[];
   };
   export default ReceiptPrinterEncoder;
 }
 
 declare module '@point-of-sale/webserial-receipt-printer' {
-  const WebSerialReceiptPrinter: new (options?: Record<string, unknown>) => unknown;
+  const WebSerialReceiptPrinter: new (options?: object) => unknown;
   export default WebSerialReceiptPrinter;
 }

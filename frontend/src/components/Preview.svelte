@@ -1234,70 +1234,70 @@
 
   /* Command token colours — keyed to cmd.type values */
   .cmd-text {
-    background: color-mix(in srgb, #3b82f6 15%, transparent);
-    border-color: #3b82f6;
-    color: #1d4ed8;
+    background: color-mix(in srgb, var(--rd-color-primary) 15%, transparent);
+    border-color: var(--rd-color-primary);
+    color: var(--rd-color-primary);
   }
   .cmd-style {
-    background: color-mix(in srgb, #8b5cf6 15%, transparent);
-    border-color: #8b5cf6;
-    color: #6d28d9;
+    background: color-mix(in srgb, var(--rd-color-warning) 15%, transparent);
+    border-color: var(--rd-color-warning);
+    color: var(--rd-color-warning);
   }
   .cmd-initialize {
-    background: color-mix(in srgb, #10b981 10%, transparent);
-    border-color: #10b981;
-    color: #065f46;
+    background: color-mix(in srgb, var(--rd-color-success) 10%, transparent);
+    border-color: var(--rd-color-success);
+    color: var(--rd-color-success);
   }
   .cmd-charmode,
   .cmd-font {
-    background: color-mix(in srgb, #6b7280 10%, transparent);
-    border-color: #9ca3af;
-    color: #6b7280;
+    background: color-mix(in srgb, var(--rd-color-on-surface-variant) 10%, transparent);
+    border-color: var(--rd-color-outline);
+    color: var(--rd-color-on-surface-variant);
   }
   .cmd-newline {
-    background: color-mix(in srgb, #6b7280 10%, transparent);
-    border-color: #9ca3af;
-    color: #6b7280;
+    background: color-mix(in srgb, var(--rd-color-on-surface-variant) 10%, transparent);
+    border-color: var(--rd-color-outline);
+    color: var(--rd-color-on-surface-variant);
   }
   .cmd-cut {
-    background: color-mix(in srgb, #ef4444 15%, transparent);
-    border-color: #ef4444;
-    color: #b91c1c;
+    background: color-mix(in srgb, var(--rd-color-error) 15%, transparent);
+    border-color: var(--rd-color-error);
+    color: var(--rd-color-error);
   }
   .cmd-image {
-    background: color-mix(in srgb, #06b6d4 15%, transparent);
-    border-color: #06b6d4;
-    color: #0e7490;
+    background: color-mix(in srgb, var(--rd-color-primary) 15%, transparent);
+    border-color: var(--rd-color-primary);
+    color: var(--rd-color-primary);
   }
   .cmd-barcode {
-    background: color-mix(in srgb, #f97316 15%, transparent);
-    border-color: #f97316;
-    color: #c2410c;
+    background: color-mix(in srgb, var(--rd-color-warning) 15%, transparent);
+    border-color: var(--rd-color-warning);
+    color: var(--rd-color-warning);
   }
   .cmd-qrcode {
-    background: color-mix(in srgb, #84cc16 15%, transparent);
-    border-color: #84cc16;
-    color: #3f6212;
+    background: color-mix(in srgb, var(--rd-color-success) 15%, transparent);
+    border-color: var(--rd-color-success);
+    color: var(--rd-color-success);
   }
   .cmd-pdf417 {
-    background: color-mix(in srgb, #d946ef 15%, transparent);
-    border-color: #d946ef;
-    color: #86198f;
+    background: color-mix(in srgb, var(--rd-color-placeholder) 15%, transparent);
+    border-color: var(--rd-color-placeholder);
+    color: var(--rd-color-placeholder);
   }
   .cmd-codepage {
-    background: color-mix(in srgb, #a78bfa 15%, transparent);
-    border-color: #a78bfa;
-    color: #5b21b6;
+    background: color-mix(in srgb, var(--rd-color-on-surface-variant) 10%, transparent);
+    border-color: var(--rd-color-outline);
+    color: var(--rd-color-on-surface-variant);
   }
   .cmd-raw {
-    background: color-mix(in srgb, #6b7280 15%, transparent);
-    border-color: #6b7280;
-    color: #374151;
+    background: color-mix(in srgb, var(--rd-color-on-surface-variant) 15%, transparent);
+    border-color: var(--rd-color-outline);
+    color: var(--rd-color-on-surface-variant);
   }
   .cmd-default {
-    background: color-mix(in srgb, #9ca3af 15%, transparent);
-    border-color: #9ca3af;
-    color: #4b5563;
+    background: color-mix(in srgb, var(--rd-color-on-surface-variant) 10%, transparent);
+    border-color: var(--rd-color-outline);
+    color: var(--rd-color-on-surface-variant);
   }
 
   /* ── Encoded tab ─────────────────────────────────────────────────── */

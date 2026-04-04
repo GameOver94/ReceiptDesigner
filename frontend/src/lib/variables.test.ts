@@ -8,7 +8,7 @@
  * Test format: describe('function') > it('does X when Y')
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   defaultsFromMeta,
   detectPlaceholders,
@@ -128,6 +128,9 @@ describe('isTemplate', () => {
 // ---------------------------------------------------------------------------
 
 describe('resolveScalars', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it('replaces a single scalar placeholder with its value', () => {
     expect(resolveScalars('Hello {{name}}', { name: 'Alice' })).toBe('Hello Alice');
   });
@@ -204,8 +207,6 @@ describe('resolveScalars', () => {
 
     const result = resolveScalars('{{random:5}}', {});
     expect(result).toBe('ABCDE');
-
-    vi.unstubAllGlobals();
   });
 
   it('resolves {{random:length:charset}} with token ranges and literals', () => {
@@ -213,8 +214,6 @@ describe('resolveScalars', () => {
 
     const result = resolveScalars('{{random:6:A-Z,a-z,0-9,#%<>}}', {});
     expect(result).toBe('ABCDEF');
-
-    vi.unstubAllGlobals();
   });
 
   it('falls back to default charset when custom charset spec is empty', () => {
@@ -222,8 +221,6 @@ describe('resolveScalars', () => {
 
     const result = resolveScalars('{{random:3:  }}', {});
     expect(result).toBe('ABC');
-
-    vi.unstubAllGlobals();
   });
 });
 

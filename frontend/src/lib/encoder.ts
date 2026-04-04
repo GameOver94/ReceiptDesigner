@@ -10,10 +10,10 @@ import type { PrinterSettings } from '$types/index';
  * The editor stores plain JavaScript code that uses the `encoder` variable, e.g.:
  *   encoder.initialize().line('Hello World').rule().cut()
  *
- * runUserCode() wraps this code in an async function, injects an `encoder` instance,
- * evaluates it, and returns the resulting encoder instance. Callers can then call
- * .encode() on the result to obtain bytes, commands, or lines depending on the
- * preview tab needed. This mirrors the playground's utils/encoder.js approach.
+ * runUserCode() evaluates this code synchronously, injects an `encoder` instance,
+ * and returns the resulting encoder instance. Callers can then call .encode() on
+ * the result to obtain bytes, commands, or lines depending on the preview tab
+ * needed. This mirrors the playground's utils/encoder.js approach.
  *
  * See docs/design.md §9.4.
  */
@@ -83,6 +83,11 @@ export interface EncoderCommand {
   codepage?: string | null;
   /** Raw ESC/POS byte payload for this command */
   payload?: number[];
+  /**
+   * Sub-command name used by 2D symbol types (qrcode, pdf417, barcode).
+   * The library emits e.g. `{ type: 'qrcode', command: 'print' }` to trigger rendering.
+   */
+  command?: string;
 }
 
 /**
@@ -178,12 +183,13 @@ function settingsToEncoderOptions(settings: PrinterSettings): EncoderOptions {
  */
 export function runUserCode(jsCode: string, settings: PrinterSettings): EncoderInstance {
   const opts = settingsToEncoderOptions(settings);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const encoder: any = new (ReceiptPrinterEncoder as any)(opts);
+  // vite-env.d.ts declares the constructor as returning `unknown`.
+  // We narrow to our typed surface via `as unknown as EncoderInstance`.
+  const encoder = new ReceiptPrinterEncoder(opts) as unknown as EncoderInstance;
 
   const trimmed = jsCode.trim();
   if (trimmed === '') {
-    return encoder as EncoderInstance;
+    return encoder;
   }
 
   // Pass the script as-is. The `encoder` variable is in scope as a parameter.
@@ -191,7 +197,7 @@ export function runUserCode(jsCode: string, settings: PrinterSettings): EncoderI
   // imperative scripts work identically — all encoder methods mutate and return `this`.
   new Function('encoder', trimmed)(encoder);
 
-  return encoder as EncoderInstance;
+  return encoder;
 }
 
 /**

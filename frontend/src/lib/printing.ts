@@ -88,10 +88,11 @@ function _setStatus(s: SerialStatus): void {
 function _getPrinter(): WebSerialPrinterInstance {
   if (_printer !== null) return _printer;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const instance = new (WebSerialReceiptPrinter as any)({
+  // vite-env.d.ts declares the constructor as returning `unknown`.
+  // We narrow to our typed surface via `as unknown as WebSerialPrinterInstance`.
+  const instance = new WebSerialReceiptPrinter({
     baudRate: 115200,
-  }) as WebSerialPrinterInstance;
+  }) as unknown as WebSerialPrinterInstance;
 
   instance.addEventListener('connected', (_device: PrinterDevice) => {
     _setStatus('online');
