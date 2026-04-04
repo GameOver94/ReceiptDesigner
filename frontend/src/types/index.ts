@@ -36,7 +36,7 @@ export interface ReceiptDocument {
   id: string;
   name: string;
   description?: string;
-  content: string; // ReceiptLine markdown, may contain placeholder syntax
+  content: string; // Receipt encoder JS code, stored as an opaque string
   placeholderMeta: PlaceholderMeta[];
   printerSettings: PrinterSettings;
   tags: string[];
@@ -85,42 +85,68 @@ export interface PlaceholderMeta {
 // ---------------------------------------------------------------------------
 
 /**
- * All Receipt.js render options for a single document.
- * These control how the ReceiptLine markdown is rendered to SVG and ESC/POS.
+ * Printer settings for a single document.
+ * These control how the JS encoder code is executed and how ESC/POS bytes are generated
+ * via @point-of-sale/receipt-printer-encoder.
+ *
+ * Each field maps directly to a constructor option of ReceiptPrinterEncoder.
+ * See: https://github.com/NielsLeenheer/ReceiptPrinterEncoder/blob/main/documentation/configuration.md
  */
 export interface PrinterSettings {
-  cpl: number; // characters per line (24–96)
-  language: string; // Receipt.js language code: en, ja, ko, zh-hans, etc.
-  command: string; // escpos | epson | sii | citizen | generic | star
-  spacing: boolean;
-  cutting: boolean;
-  upsideDown: boolean;
-  marginLeft: number; // 0–24
-  marginRight: number; // 0–24
-  gamma: number; // 0.1–10.0
-  threshold: number; // 0–255
-  printAsImage: boolean;
-  landscape: boolean;
+  /** Columns / characters per line (24–96). Maps to encoder `columns` option. */
+  columns: number;
+  /**
+   * Printer command language. Maps to encoder `language` option.
+   * 'esc-pos' covers Epson, Citizen, Star (ESC/POS mode), and most generic printers.
+   * 'star-prnt' / 'star-line' are for Star printers in their native protocols.
+   */
+  language: 'esc-pos' | 'star-prnt' | 'star-line';
+  /**
+   * Optional printer model string (e.g. 'epson-tm-t88vi').
+   * When set, the encoder automatically selects the correct codepage mapping and
+   * capability flags for the specific model. Overrides `codepageMapping`.
+   */
+  printerModel: string;
+  /**
+   * Codepage mapping profile (e.g. 'epson', 'star', 'bixolon').
+   * Used when `printerModel` is not set. Controls which codepages the printer supports.
+   */
+  codepageMapping: string;
+  /**
+   * Number of lines to feed before the cutter fires (0 = no extra feed).
+   * Maps to encoder `feedBeforeCut` option.
+   * Most printers need a few lines so the cut falls below the last text line.
+   */
+  feedBeforeCut: number;
+  /**
+   * Newline sequence used by the printer.
+   * '\n\r' (default) works for virtually all modern receipt printers.
+   * Use '\n' only for exotic printers that interpret '\n\r' as two blank lines.
+   * Maps to encoder `newline` option.
+   */
+  newline: '\n\r' | '\n';
+  /**
+   * Image encoding mode for ESC/POS printers.
+   * 'column' (default) works on most modern printers.
+   * Use 'raster' for older printers that do not support column mode.
+   * Maps to encoder `imageMode` option (ESC/POS only — ignored for Star protocols).
+   */
+  imageMode: 'column' | 'raster';
 }
 
 /**
  * Default printer settings used when creating a new document or resetting the editor.
- * 80 mm paper at 48 cpl is the most common thermal receipt printer width.
+ * 80 mm paper at 48 columns is the most common thermal receipt printer width.
  * Defined here (alongside PrinterSettings) so every consumer imports from one place.
  */
 export const DEFAULT_PRINTER_SETTINGS: PrinterSettings = {
-  cpl: 48,
-  language: 'en',
-  command: 'escpos',
-  spacing: false,
-  cutting: true,
-  upsideDown: false,
-  marginLeft: 0,
-  marginRight: 0,
-  gamma: 1.0,
-  threshold: 128,
-  printAsImage: false,
-  landscape: false,
+  columns: 48,
+  language: 'esc-pos',
+  printerModel: '',
+  codepageMapping: 'epson',
+  feedBeforeCut: 4,
+  newline: '\n\r',
+  imageMode: 'column',
 };
 
 // ---------------------------------------------------------------------------

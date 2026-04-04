@@ -62,6 +62,3 @@ export function getAdapter(): StorageAdapter {
   }
   return _currentAdapter;
 }
-
-/** Read-only view of the adapter store for components that need to know mode. */
-export const adapterStore = { subscribe: _adapter.subscribe };
