@@ -6,9 +6,8 @@
   import EditorToolbar from './EditorToolbar.svelte';
   import CsvDataTable from './CsvDataTable.svelte';
 
-  // The CodeMirror EditorView instance — not reactive state, just a reference
-  // We keep it in a regular `let` because we don't need Svelte to track it.
-  let view: EditorView | null = null;
+  // Keep EditorView reactive so child toolbar receives updates.
+  let view = $state<EditorView | null>(null);
 
   /**
    * Svelte action: initialise CodeMirror on a DOM element.

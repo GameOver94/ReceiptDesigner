@@ -24,7 +24,12 @@
     Undo,
   } from 'lucide-svelte';
   import ImageBase64Modal from './ImageBase64Modal.svelte';
-  import { getCommandDocsUrl, insertSnippet, insertSnippetWithAutoFold, toolbarGroups } from '$lib/editorToolbar';
+  import {
+    getCommandDocsUrl,
+    insertSnippet,
+    insertSnippetWithAutoFold,
+    toolbarGroups,
+  } from '$lib/editorToolbar';
   import type { EditorToolbarCommand } from '$lib/editorToolbar';
   import type { EditorView } from '@codemirror/view';
   import type { Component } from 'svelte';
@@ -99,6 +104,12 @@
     }, 160);
   }
 
+  function handleCommandItemKeydown(event: KeyboardEvent, commandId: string): void {
+    if (event.key === 'Escape') {
+      handleHoverEnd(commandId);
+    }
+  }
+
   function getIcon(command: EditorToolbarCommand): Component | undefined {
     if (command.icon === undefined) return undefined;
     return commandIcons[command.icon];
@@ -140,18 +151,17 @@
         <div class="command-list">
           {#each group.commands as command (command.id)}
             {@const Icon = getIcon(command)}
-            <div
-              class="command-item"
-              onmouseenter={() => handleHoverStart(command.id)}
-              onmouseleave={() => handleHoverEnd(command.id)}
-              onfocusin={() => handleHoverStart(command.id)}
-              onfocusout={() => handleHoverEnd(command.id)}
-            >
+            <div class="command-item">
               <button
                 type="button"
                 class="toolbar-btn command-btn"
                 onclick={() => handleCommandClick(command)}
                 aria-label={commandAriaLabel(command)}
+                onmouseenter={() => handleHoverStart(command.id)}
+                onmouseleave={() => handleHoverEnd(command.id)}
+                onfocus={() => handleHoverStart(command.id)}
+                onblur={() => handleHoverEnd(command.id)}
+                onkeydown={(event) => handleCommandItemKeydown(event, command.id)}
               >
                 {#if Icon}
                   <Icon size={14} aria-hidden="true" />
@@ -160,7 +170,16 @@
               </button>
 
               {#if hoveredCommand === command.id}
-                <div class="hover-menu" role="dialog" aria-label={`${command.label} command details`}>
+                <div
+                  class="hover-menu"
+                  role="dialog"
+                  tabindex="-1"
+                  aria-label={`${command.label} command details`}
+                  onmouseenter={() => handleHoverStart(command.id)}
+                  onmouseleave={() => handleHoverEnd(command.id)}
+                  onfocusin={() => handleHoverStart(command.id)}
+                  onfocusout={() => handleHoverEnd(command.id)}
+                >
                   <div class="menu-preview">
                     <span class="menu-title">Preview</span>
                     <code>{command.preview}</code>
@@ -201,7 +220,7 @@
 </div>
 
 {#if showImageBase64Modal}
-  <ImageBase64Modal oninsert={handleModalInsert} oncancel={handleModalCancel} />
+  <ImageBase64Modal onInsert={handleModalInsert} onCancel={handleModalCancel} />
 {/if}
 
 <style>
@@ -367,5 +386,4 @@
   .menu-docs-link:hover {
     text-decoration: underline;
   }
-
 </style>

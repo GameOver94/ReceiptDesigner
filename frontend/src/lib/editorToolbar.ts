@@ -265,18 +265,18 @@ export const toolbarGroups: EditorToolbarGroup[] = [
         label: 'Table',
         icon: 'Table',
         snippet:
-          '.table(\n  [\n    { width: 32, marginRight: 2, align: \'left\' },\n    { width: 10, align: \'right\' },\n  ],\n  [\n    [\'Item\', \'Price\'],\n    [\'Total\', \'0.00\'],\n  ],\n)',
+          ".table(\n  [\n    { width: 32, marginRight: 2, align: 'left' },\n    { width: 10, align: 'right' },\n  ],\n  [\n    ['Item', 'Price'],\n    ['Total', '0.00'],\n  ],\n)",
         preview: '.table([...columns], [...rows])',
         variations: [
           {
             label: '2 col',
             snippet:
-              '.table([\n  { width: 32, marginRight: 2, align: \'left\' },\n  { width: 10, align: \'right\' },\n], [\n  [\'Item\', \'Price\'],\n  [\'Total\', \'0.00\'],\n])',
+              ".table([\n  { width: 32, marginRight: 2, align: 'left' },\n  { width: 10, align: 'right' },\n], [\n  ['Item', 'Price'],\n  ['Total', '0.00'],\n])",
           },
           {
             label: '3 col',
             snippet:
-              '.table([\n  { width: 18, align: \'left\' },\n  { width: 10, align: \'right\' },\n  { width: 10, align: \'right\' },\n], [\n  [\'Item\', \'Qty\', \'Amt\'],\n])',
+              ".table([\n  { width: 18, align: 'left' },\n  { width: 10, align: 'right' },\n  { width: 10, align: 'right' },\n], [\n  ['Item', 'Qty', 'Amt'],\n])",
           },
         ],
         docsAnchor: '#table',

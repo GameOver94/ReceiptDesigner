@@ -23,7 +23,7 @@ import type { PrinterSettings } from '$types/index';
 
 const _content = writable<string>('');
 const _printerSettings = writable<PrinterSettings>(DEFAULT_PRINTER_SETTINGS);
-const _imagePreviewScale = writable<number>(1);
+const _imagePreviewScale = writable<number>(0.67);
 
 // ---------------------------------------------------------------------------
 // Read-only public views
@@ -77,5 +77,5 @@ export function setImagePreviewScale(scale: number): void {
 export function resetEditor(): void {
   _content.set('');
   _printerSettings.set(DEFAULT_PRINTER_SETTINGS);
-  _imagePreviewScale.set(1);
+  _imagePreviewScale.set(0.67);
 }

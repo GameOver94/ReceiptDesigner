@@ -21,7 +21,8 @@
   ];
 
   let activeTab = $state<PreviewTab>('text');
-  let outputEncodeVersion = $state(0);
+  let commandRunVersion = 0;
+  let outputRunVersion = 0;
 
   // ---------------------------------------------------------------------------
   // Encode output state
@@ -82,15 +83,19 @@
     }
 
     const contentToEncode = effectiveContent ?? content;
+    const runVersion = commandRunVersion + 1;
+    commandRunVersion = runVersion;
 
     if (isBatchMode) {
       // Immediate render when navigating batch rows — skip debounce.
       void encodeToCommands(contentToEncode, settings)
         .then((result) => {
+          if (runVersion !== commandRunVersion) return;
           commandsOutput = result;
           encodeError = null;
         })
         .catch((err: unknown) => {
+          if (runVersion !== commandRunVersion) return;
           commandsOutput = null;
           encodeError = err instanceof Error ? err.message : String(err);
         });
@@ -98,27 +103,30 @@
     }
 
     encodeToCommandsDebounced(contentToEncode, settings, (result, error) => {
+      if (runVersion !== commandRunVersion) return;
       commandsOutput = result;
       encodeError = error;
     });
   });
 
   $effect(() => {
-    if (activeTab !== 'output') return;
-    if (effectiveContent === null || modeValidationError !== null) return;
+    if (activeTab !== 'output' || effectiveContent === null || modeValidationError !== null) {
+      hexDump = [];
+      return;
+    }
 
     const content = effectiveContent;
     const settings = $printerSettings;
-    const run = outputEncodeVersion + 1;
-    outputEncodeVersion = run;
+    const runVersion = outputRunVersion + 1;
+    outputRunVersion = runVersion;
 
     void encodeToBytes(content, settings)
       .then((bytes) => {
-        if (outputEncodeVersion !== run) return;
+        if (outputRunVersion !== runVersion) return;
         hexDump = _buildHexDump(bytes);
       })
       .catch(() => {
-        if (outputEncodeVersion !== run) return;
+        if (outputRunVersion !== runVersion) return;
         hexDump = [];
       });
   });
@@ -211,7 +219,11 @@
   let textLines: TextLine[] = $derived(
     commandsOutput === null
       ? []
-      : _commandsToTextLines(commandsOutput, $printerSettings.feedBeforeCut, $printerSettings.language),
+      : _commandsToTextLines(
+          commandsOutput,
+          $printerSettings.feedBeforeCut,
+          $printerSettings.language,
+        ),
   );
 
   function _commandsToTextLines(
@@ -700,7 +712,11 @@
       return;
     }
 
-    ctx.fillStyle = '#fff';
+    const styles = getComputedStyle(node);
+    const paperColor = styles.getPropertyValue('--rd-color-bg-primary').trim() || '#fff';
+    const inkColor = styles.getPropertyValue('--rd-color-text-primary').trim() || '#111';
+
+    ctx.fillStyle = paperColor;
     ctx.fillRect(0, 0, width, height);
 
     let yOffset = 0;
@@ -725,7 +741,7 @@
           }
 
           if (bit === 1) {
-            ctx.fillStyle = '#111';
+            ctx.fillStyle = inkColor;
             ctx.fillRect(x, y + yOffset, 1, 1);
           }
         }
@@ -734,7 +750,7 @@
       yOffset += chunkHeight;
     }
 
-    setCanvasDisplayScale(node, 0.75 * image.previewScale);
+    setCanvasDisplayScale(node, image.previewScale);
   }
 
   function imageAction(node: HTMLCanvasElement, image: RenderableImage) {
@@ -840,10 +856,7 @@
                   class:align-center={line.image.align === 'center'}
                   class:align-right={line.image.align === 'right'}
                 >
-                  <div
-                    class="symbol-wrap image-wrap"
-                    aria-label="Image preview"
-                  >
+                  <div class="symbol-wrap image-wrap" aria-label="Image preview">
                     <canvas use:imageAction={line.image} class="image-canvas"></canvas>
                   </div>
                 </div>

@@ -181,7 +181,10 @@ function settingsToEncoderOptions(settings: PrinterSettings): EncoderOptions {
  * @returns The encoder instance after running user code
  * @throws  On evaluation or runtime error (caller should catch and show a toast)
  */
-export async function runUserCode(jsCode: string, settings: PrinterSettings): Promise<EncoderInstance> {
+export async function runUserCode(
+  jsCode: string,
+  settings: PrinterSettings,
+): Promise<EncoderInstance> {
   const opts = settingsToEncoderOptions(settings);
   // vite-env.d.ts declares the constructor as returning `unknown`.
   // We narrow to our typed surface via `as unknown as EncoderInstance`.
@@ -211,7 +214,10 @@ export async function runUserCode(jsCode: string, settings: PrinterSettings): Pr
  * @returns Uint8Array of raw printer command bytes
  * @throws  On evaluation or encoding error
  */
-export async function encodeToBytes(jsCode: string, settings: PrinterSettings): Promise<Uint8Array> {
+export async function encodeToBytes(
+  jsCode: string,
+  settings: PrinterSettings,
+): Promise<Uint8Array> {
   const enc = await runUserCode(jsCode, settings);
   return enc.encode();
 }

@@ -3,11 +3,11 @@
   import Button from './common/Button.svelte';
 
   interface Props {
-    oninsert: (snippet: string) => void;
-    oncancel: () => void;
+    onInsert: (snippet: string) => void;
+    onCancel: () => void;
   }
 
-  const { oninsert, oncancel }: Props = $props();
+  const { onInsert, onCancel }: Props = $props();
 
   let imageUrlInput = $state('');
   let imageVariableName = $state('imageBase64');
@@ -149,18 +149,18 @@
       imageToolError = 'Convert an image first, then confirm insertion.';
       return;
     }
-    oninsert(generatedSnippet);
+    onInsert(generatedSnippet);
+  }
+
+  function handleModalKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onCancel();
+    }
   }
 </script>
 
-<div
-  class="modal-backdrop"
-  role="presentation"
-  onclick={oncancel}
-  onkeydown={(e) => {
-    if (e.key === 'Escape') oncancel();
-  }}
->
+<div class="modal-backdrop" role="presentation" onclick={onCancel} onkeydown={handleModalKeydown}>
   <div
     class="modal-dialog"
     role="dialog"
@@ -168,7 +168,11 @@
     aria-labelledby="image-base64-title"
     tabindex="-1"
     onclick={(e) => e.stopPropagation()}
-    onkeydown={(e) => e.stopPropagation()}
+    onkeydown={(e) => {
+      if (e.key !== 'Escape') {
+        e.stopPropagation();
+      }
+    }}
     use:focusOnMount
   >
     <h2 class="modal-title" id="image-base64-title">Insert image as base64 variable</h2>
@@ -245,8 +249,12 @@
     {/if}
 
     <div class="modal-actions">
-      <Button variant="secondary" onclick={oncancel}>Cancel</Button>
-      <Button variant="primary" onclick={handleConfirmInsert} isDisabled={generatedSnippet === null}>
+      <Button variant="secondary" onclick={onCancel}>Cancel</Button>
+      <Button
+        variant="primary"
+        onclick={handleConfirmInsert}
+        isDisabled={generatedSnippet === null}
+      >
         Confirm insert
       </Button>
     </div>

@@ -84,8 +84,7 @@ const base64DataUrlFold = foldService.of((state, lineStart, lineEnd) => {
 
   // Keep metadata visible (`data:image/...;base64,`) and fold the large payload tail.
   const base64MarkerIndex = payload.indexOf('base64,');
-  const foldValueStart =
-    base64MarkerIndex === -1 ? 0 : base64MarkerIndex + 'base64,'.length;
+  const foldValueStart = base64MarkerIndex === -1 ? 0 : base64MarkerIndex + 'base64,'.length;
 
   if (payload.length - foldValueStart < MIN_FOLD_LENGTH) {
     return null;

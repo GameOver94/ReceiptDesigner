@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { imagePreviewScale, printerSettings, setImagePreviewScale, updatePrinterSettings } from '$store/editorStore';
+  import {
+    imagePreviewScale,
+    printerSettings,
+    setImagePreviewScale,
+    updatePrinterSettings,
+  } from '$store/editorStore';
   import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
   import { printerModels } from '$lib/encoder';
   import type { SerialStatus } from '$lib/printing';
@@ -320,7 +325,7 @@
       />
       <span class="setting-suffix" aria-hidden="true">%</span>
       <span id="image-preview-scale-hint" class="setting-hint"
-        >Preview only. Default is 100%. Lower values shrink previewed images.</span
+        >Preview only. Default is 67%. Lower values shrink previewed images.</span
       >
     </div>
   </div>
