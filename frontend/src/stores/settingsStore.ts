@@ -92,3 +92,18 @@ export const appSettings = { subscribe: _settings.subscribe };
 export function updateSettings(partial: Partial<AppSettings>): void {
   _settings.update((current) => ({ ...current, ...partial }));
 }
+
+/**
+ * Apply a theme by:
+ * 1. Persisting the new value to the settings store (and therefore localStorage).
+ * 2. Swapping the class on `<html>` so the correct Material theme CSS file activates.
+ *
+ * The theme CSS files live in `public/theme/` and are loaded via `<link>` tags in
+ * `index.html`. Each file scopes its tokens under a class on `<html>` (e.g. `.light`,
+ * `.dark`). Switching the class is the only change needed — no rebuild required.
+ */
+export function setTheme(theme: AppSettings['theme']): void {
+  updateSettings({ theme });
+  document.documentElement.classList.remove('light', 'dark');
+  document.documentElement.classList.add(theme);
+}

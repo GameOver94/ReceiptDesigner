@@ -20,10 +20,18 @@ import './styles/global.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 import { initAdapter } from './stores/adapterStore';
+import { setTheme } from './stores/settingsStore';
+import { get } from 'svelte/store';
+import { appSettings } from './stores/settingsStore';
 
 // Initialise the storage adapter synchronously before mounting.
 // This sets the adapter in adapterStore so all subsequent store actions work.
 initAdapter();
+
+// Apply the persisted theme to <html> before the first render to prevent a
+// flash of the wrong colour scheme. settingsStore.loadPersistedSettings() has
+// already run at module evaluation time, so appSettings holds the correct value.
+setTheme(get(appSettings).theme);
 
 // Mount the Svelte 5 app.
 // `mount()` replaces the legacy `new App({ target })` from Svelte 4.

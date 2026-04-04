@@ -78,7 +78,7 @@ body {
  * We use an outline instead of box-shadow so it works on non-rectangular elements.
  * ---------------------------------------------------------------------- */
 :focus-visible {
-  outline: 2px solid var(--rd-color-accent);
+  outline: 2px solid var(--rd-color-primary);
   outline-offset: 2px;
 }
 
@@ -119,19 +119,43 @@ body {
   color: var(--rd-color-placeholder);
   border-radius: var(--rd-radius-sm);
   padding: 0 2px;
+  font-weight: var(--rd-font-weight-medium);
 }
 
-/* --------------------------------------------------------------------------
- * Utility — visually hidden (accessible text for screen readers)
- * ---------------------------------------------------------------------- */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.cm-editor .cm-content .cm-placeholder-tag,
+.cm-editor .cm-content .cm-placeholder-tag span {
+  color: var(--rd-color-placeholder);
+  font-weight: var(--rd-font-weight-medium);
+}
+
+.cm-placeholder-brace {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.cm-placeholder-name {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.cm-placeholder-sigil {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.cm-placeholder-block-open {
+  text-decoration: underline;
+  text-decoration-color: var(--rd-color-primary);
+  text-underline-offset: 2px;
+}
+
+.cm-placeholder-block-close {
+  text-decoration: underline;
+  text-decoration-color: var(--rd-color-outline);
+  text-decoration-style: dashed;
+  text-underline-offset: 2px;
+}
+
+.cm-placeholder-invalid {
+  color: var(--rd-color-error);
 }
