@@ -94,9 +94,9 @@
 
   function handleImagePreviewScaleChange(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const value = parseFloat(input.value);
-    if (!Number.isNaN(value) && value >= 0.5 && value <= 1.5) {
-      setImagePreviewScale(value);
+    const value = parseInt(input.value, 10);
+    if (!Number.isNaN(value) && value >= 50 && value <= 150) {
+      setImagePreviewScale(value / 100);
     }
   }
 
@@ -311,15 +311,16 @@
         id="image-preview-scale-input"
         type="number"
         class="setting-input"
-        min="0.5"
-        max="1.5"
-        step="0.05"
-        value={$imagePreviewScale}
+        min="50"
+        max="150"
+        step="1"
+        value={Math.round($imagePreviewScale * 100)}
         onchange={handleImagePreviewScaleChange}
         aria-describedby="image-preview-scale-hint"
       />
+      <span class="setting-suffix" aria-hidden="true">%</span>
       <span id="image-preview-scale-hint" class="setting-hint"
-        >Preview only. 1.0 is default. Lower values shrink previewed images.</span
+        >Preview only. Default is 100%. Lower values shrink previewed images.</span
       >
     </div>
   </div>
@@ -401,6 +402,11 @@
   .setting-hint {
     font-size: var(--rd-font-sm);
     color: var(--rd-color-text-muted);
+  }
+
+  .setting-suffix {
+    font-size: var(--rd-font-sm);
+    color: var(--rd-color-text-secondary);
   }
 
   .preset-buttons {
