@@ -3,6 +3,7 @@
   import { EditorState } from '@codemirror/state';
   import { editorExtensions } from '$lib/codemirror/editorSetup';
   import { editorContent } from '$store/editorStore';
+  import EditorToolbar from './EditorToolbar.svelte';
   import CsvDataTable from './CsvDataTable.svelte';
 
   // The CodeMirror EditorView instance — not reactive state, just a reference
@@ -71,9 +72,7 @@
   EditorView theme setting height: 100% above.
 -->
 <section class="editor-panel" aria-label="Receipt encoder editor">
-  <div class="editor-toolbar">
-    <span class="toolbar-label">Encoder</span>
-  </div>
+  <EditorToolbar {view} />
   <!-- CodeMirror mounts into this div via the initEditor action -->
   <div class="editor-container" use:initEditor></div>
   <!-- CSV data table — rendered below the editor when a CSV is loaded -->
@@ -88,21 +87,6 @@
     overflow: hidden;
     border-right: 1px solid var(--rd-color-border);
     background-color: var(--rd-color-bg-primary);
-  }
-
-  .editor-toolbar {
-    display: flex;
-    align-items: center;
-    padding: var(--rd-space-2) var(--rd-space-3);
-    border-bottom: 1px solid var(--rd-color-border);
-    background-color: var(--rd-color-bg-secondary);
-    flex-shrink: 0;
-  }
-
-  .toolbar-label {
-    font-size: var(--rd-font-sm);
-    color: var(--rd-color-text-secondary);
-    font-weight: var(--rd-font-weight-medium);
   }
 
   /* editor-container fills the remaining height in the flex column */

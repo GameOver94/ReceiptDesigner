@@ -11,6 +11,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { javascriptSyntax } from './javascriptSyntax';
 import { placeholderHighlight } from './placeholderHighlight';
+import { base64FoldingExtensions } from './base64Folding';
 import { setContent } from '$store/editorStore';
 import { markDirty } from '$store/documentStore';
 import type { Extension } from '@codemirror/state';
@@ -34,6 +35,7 @@ export const editorExtensions: Extension[] = [
   // JavaScript syntax highlighting for encoder code
   javascriptSyntax,
   syntaxHighlighting(defaultHighlightStyle),
+  ...base64FoldingExtensions,
 
   // Placeholder tag highlighting — marks {{...}} regions amber
   placeholderHighlight,
