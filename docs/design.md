@@ -1,7 +1,7 @@
 # ReceiptDesigner — Design Document
 
-**Version:** 0.8
-**Date:** 2026-02-25
+**Version:** 0.9
+**Date:** 2026-03-08
 **Status:** Living document — update with each milestone
 
 ---
@@ -9,14 +9,14 @@
 ## 1. Project Overview
 
 ReceiptDesigner is a web application for authoring, previewing, and printing receipts and tickets
-using the [ReceiptLine](https://github.com/receiptline/receiptline) markdown language. It is a
-hobby project that improves on the existing Receipt.js Designer tool by adding a modern UI, a
+using JavaScript encoder code powered by [`@point-of-sale/receipt-printer-encoder`](https://github.com/NielsLeenheer/ReceiptPrinterEncoder). It is a
+hobby project that adds a modern UI, a
 document / template system with a rich placeholder engine, and a self-hosted production backend
 with ESC/POS printer support.
 
 ### 1.1 Goals
 
-- Provide a clean, modern editor for ReceiptLine markdown with a live receipt preview.
+- Provide a clean, modern editor for receipt printer encoder JS code with a live multi-tab receipt preview.
 - Unified document model: any saved document that contains placeholders acts as a template;
   documents without placeholders are printed directly. No separate type is needed.
 - Placeholder system with three modes: scalar fill-in, CSV batch printing, and CSV line-item
@@ -32,7 +32,6 @@ with ESC/POS printer support.
 - Multi-user accounts (may be added later).
 - Cloud synchronisation.
 - Mobile-first or native app packaging (Electron etc.).
-- Building a new ReceiptLine parser — Receipt.js is used as-is.
 
 ---
 
@@ -43,7 +42,7 @@ consistently.
 
 ### 2.1 Document
 
-A **Document** is any saved ReceiptLine markdown file with associated metadata and printer
+A **Document** is any saved encoder JS code file with associated metadata and printer
 settings. It is the single top-level storage entity in the system.
 
 - A document is **plain** when its content contains no placeholder syntax. It can be loaded into
@@ -55,30 +54,30 @@ settings. It is the single top-level storage entity in the system.
 
 ### 2.2 Placeholder
 
-A **Placeholder** is a tagged region in a document's ReceiptLine content that is replaced with
+A **Placeholder** is a tagged region in a document's encoder JS code content that is replaced with
 real data before printing or before the document is loaded into the editor for manual editing.
 
-There are four placeholder kinds (see Section 6 for full syntax):
+There are five placeholder kinds (see Section 6 for full syntax):
 
 | Kind | Syntax | Filled by |
 |------|--------|-----------|
 | **Scalar** | `{{field_name}}` | Fill-in dialog or one column of a CSV row |
 | **Date/Time** | `{{date}}`, `{{time}}`, `{{datetime}}` | System clock (overridable) |
+| **Random** | `{{random:length:charset}}` | Browser CSPRNG (`crypto.getRandomValues`) |
 | **Line-item block** | `{{#items}} ... {{/items}}` | Rows of a CSV or the `items` array in JSON |
 | **Combined** | All of the above together | A JSON payload with scalar fields + `items` array |
 
 ### 2.3 Print Job
 
-A **Print Job** is the act of sending a fully-resolved ReceiptLine document (all placeholders
+A **Print Job** is the act of sending a fully-resolved encoder JS document (all placeholders
 replaced) as ESC/POS commands to a physical printer. ESC/POS bytes are always generated in the
-browser. In demo mode on supported browsers, the job is sent directly via the Web Serial API.
+browser by executing the encoder JS code via `lib/encoder.ts`. In demo mode on supported browsers, the job is sent directly via the Web Serial API.
 In demo mode on unsupported browsers, or when no printer is connected, a print job produces a
 downloadable file instead.
 
 ### 2.4 Printer Profile
 
-A **Printer Profile** is a named set of Receipt.js render options (CPL, encoding, command,
-margins, etc.) that is stored alongside each document and can be shared as a default. In
+A **Printer Profile** is a named set of encoder options (columns, language, printer model, codepage mapping, feed-before-cut, newline, image mode) that is stored alongside each document and can be shared as a default. In
 production mode it also references a physical printer connection.
 
 ---
@@ -92,10 +91,10 @@ The project has two independently deployable artifacts that share the same front
 │                           BROWSER                            │
 │                                                              │
 │  ┌──────────────┐   ┌──────────────────────────────────────┐ │
-│  │  Editor      │──▶│  Receipt.js                          │ │
-│  │  (Svelte +   │   │  receipt.js      → SVG preview       │ │
-│  │  CodeMirror) │   │  receipt-printer.js → ESC/POS bytes  │ │
-│  └──────────────┘   │  receipt-serial.js  → Web Serial API │ │
+│  │  Editor      │──▶│  receipt-printer-encoder             │ │
+│  │  (Svelte +   │   │  lib/encoder.ts  → multi-tab preview │ │
+│  │  CodeMirror) │   │  (Text / Hex / Commands / Binary)    │ │
+│  └──────────────┘   │  ESC/POS bytes for printing          │ │
 │         │           └──────────────────────────────────────┘ │
 │  ┌──────▼──────────────────────────────────────────────────┐ │
 │  │                App State (Svelte stores)                │ │
@@ -121,7 +120,7 @@ The project has two independently deployable artifacts that share the same front
 │  └──────┬──────┘   │  browser, forwards to:              │ │
 │         │          │   • TCP socket (network printer)    │ │
 │  ┌──────▼──────┐   │   • pyserial (USB/serial printer)   │ │
-│  │  SQLite DB  │   │  No ReceiptLine parsing on server.  │ │
+│  │  SQLite DB  │   │  No ESC/POS generation on server.   │ │
 │  │  (SQLAlchemy│   └─────────────────────────────────────┘ │
 │  │   sync ORM) │                                           │
 │  └─────────────┘                                           │
@@ -149,15 +148,15 @@ separate static file server is needed.
 
 | ID | Feature | Priority | Mode |
 |----|---------|----------|------|
-| F-01 | ReceiptLine markdown text editor with syntax highlighting | Must | Both |
-| F-02 | Live SVG preview rendered by Receipt.js | Must | Both |
-| F-03 | Configurable preview width (characters per line: 24–96) | Must | Both |
+| F-01 | JavaScript encoder code editor with syntax highlighting | Must | Both |
+| F-02 | Live multi-tab preview (Text / Hex / Commands / Binary) rendered by receipt-printer-encoder | Must | Both |
+| F-03 | Configurable preview width (columns: 24–96) | Must | Both |
 | F-04 | Zoom control on the preview pane | Should | Both |
-| F-05 | Language / encoding selector (en, ja, ko, zh-hans, zh-hant, th, …) | Should | Both |
+| F-05 | Language selector (en, de, fr, es, pt, nl, …) | Should | Both |
 | F-06 | Landscape / portrait toggle | Should | Both |
 | F-07 | Line spacing toggle | Should | Both |
 | F-08 | Placeholder tag highlighting (`{{field}}`, `{{#items}}…{{/items}}`) | Should | Both |
-| F-09 | Snippet toolbar covering the full ReceiptLine feature set (barcode, QR code, image, HR, paper cut, text styles, alignment, columns, placeholder, etc.) | Could | Both |
+| F-09 | Snippet toolbar covering the full encoder API (barcode, QR code, image, HR, paper cut, text styles, alignment, columns, placeholder, etc.) | Could | Both |
 | F-10 | Split view (editor left, preview right) with draggable divider | Must | Both |
 | F-11 | Paper width preset selector (58 mm → 32 cpl, 80 mm → 48 cpl, custom) | Should | Both |
 
@@ -194,13 +193,13 @@ separate static file server is needed.
 | ID | Feature | Priority | Mode |
 |----|---------|----------|------|
 | E-01 | Export as SVG | Must | Both |
-| E-02 | Export as PNG (via Receipt.js `toPNG()`) | Must | Both |
+| E-02 | Export as PNG (canvas render of the Text preview) | Must | Both |
 | E-03 | Export as PDF (browser print dialog with `@media print` CSS) | Should | Both |
 | E-04 | Copy SVG to clipboard | Could | Both |
 
 ### 4.5 Printing
 
-ESC/POS commands are generated by `receipt-printer.js` in the browser for all three print paths.
+ESC/POS commands are generated by `receipt-printer-encoder` (via `lib/encoder.ts`) in the browser for all three print paths.
 
 #### Path A — Web Serial (demo + production, Chrome/Edge/Opera only)
 
@@ -227,7 +226,7 @@ ESC/POS commands are generated by `receipt-printer.js` in the browser for all th
 
 | ID | Feature | Priority | Mode |
 |----|---------|----------|------|
-| S-01 | Default printer profile (cpl, encoding, command) | Must | Both |
+| S-01 | Default printer profile (columns, language, printer model) | Must | Both |
 | S-02 | UI theme (light / dark) | Could | Both |
 | S-03 | Editor font size | Could | Both |
 | S-04 | Auto-save toggle | Should | Both |
@@ -244,11 +243,11 @@ ESC/POS commands are generated by `receipt-printer.js` in the browser for all th
 | Framework | **Svelte 5 + Vite** | Single-file components, compiled output, minimal runtime, low learning curve for non-web-devs |
 | State management | **Svelte stores** (built-in) | No extra dependency; `writable` / `derived` stores cover all needs |
 | Editor | CodeMirror 6 | Extensible, community Svelte wrapper available, custom syntax highlighting |
-| Receipt rendering | Receipt.js (`receipt.js`) | Official browser-side SDK from the receiptline organisation |
+| Receipt rendering | `@point-of-sale/receipt-printer-encoder` | Browser-side ESC/POS encoder; executes user-written JS to build a multi-tab preview and ESC/POS byte stream |
 | Icons | **lucide-svelte** | Consistent 1.5 px stroke set, tree-shakeable Svelte components, MIT licence |
 | Styling | CSS custom properties + scoped `<style>` in `.svelte` files | Svelte scopes styles per component natively; tokens via CSS variables |
 | Export (PDF) | Browser `window.print()` with `@media print` CSS | Zero dependency, works as a static file |
-| Export (PNG) | Receipt.js `toPNG()` | Already bundled with Receipt.js |
+| Export (PNG) | Canvas render from Text preview | Rasterises the Text tab character grid to PNG |
 | HTTP client | `fetch` (native) | No dependency |
 
 ### 5.2 Backend (Production)
@@ -264,8 +263,8 @@ ESC/POS commands are generated by `receipt-printer.js` in the browser for all th
 | Printer (USB/serial) | `pyserial` | Write raw bytes received from the browser to the serial device; no parsing needed |
 | Process manager | `uvicorn` + `supervisord` or `systemd` (self-hosted) | Standard Python async server toolchain |
 
-> **Note on server role:** The Python server **never parses or transforms ReceiptLine markdown**.
-> ESC/POS command bytes are generated entirely in the browser by `receipt-printer.js`. The server
+> **Note on server role:** The Python server **never generates or transforms ESC/POS bytes**.
+> ESC/POS command bytes are generated entirely in the browser by `receipt-printer-encoder` (via `lib/encoder.ts`). The server
 > receives a binary blob and forwards it to the appropriate printer connection. This means Node.js
 > is **not required** on the server at all.
 
@@ -293,7 +292,7 @@ ESC/POS commands are generated by `receipt-printer.js` in the browser for all th
 
 ## 6. Placeholder Syntax
 
-Placeholders live inside ReceiptLine markdown content. They are processed entirely in the
+Placeholders live inside encoder JS code content. They are processed entirely in the
 frontend — for live preview, fill-in dialogs, and ESC/POS generation before printing. The
 server never sees or resolves placeholder syntax.
 
@@ -307,11 +306,11 @@ Replaced with a single string value. Field names are lowercase with underscores.
 
 Examples:
 ```
-^^^{{shop_name}}
-{{date}} {{time}}
----
-Customer: {{customer_name}}
-Total | ^{{total}}
+encoder.text('{{shop_name}}').newline();
+encoder.text('{{date}} {{time}}').newline();
+encoder.rule();
+encoder.text('Customer: {{customer_name}}').newline();
+encoder.text('Total: {{total}}').newline();
 ```
 
 ### 6.2 Built-in Date/Time Placeholders
@@ -325,11 +324,36 @@ Total | ^{{total}}
 These auto-fill from the system clock when a document is resolved. They can be overridden by
 providing a value in the fill-in dialog or in the CSV/JSON data.
 
-### 6.3 Line-Item Block
+### 6.3 Built-in Random Placeholder
+
+```text
+{{random:length}}
+{{random:length:A-Z,a-z,0-9,#%<>}}
+```
+
+Generates a random string with the requested `length` using browser-grade randomness
+(`crypto.getRandomValues`).
+
+- Supported charset tokens:
+  - `A-Z` uppercase letters
+  - `a-z` lowercase letters
+  - `0-9` digits
+- Any other token is treated as literal characters (for example `#%<>`).
+- Tokens are comma-separated; duplicates are removed.
+- If charset is omitted or empty, default charset is `A-Z,a-z,0-9`.
+
+Examples:
+
+```js
+encoder.line('PIN: {{random:6:0-9}}');
+encoder.line('Password: {{random:20:A-Z,a-z,0-9,#%<>}}');
+```
+
+### 6.4 Line-Item Block
 
 ```
 {{#items}}
-{{item_name}} | {{quantity}} | {{price}}
+encoder.text('{{item_name}} {{quantity}} {{price}}').newline();
 {{/items}}
 ```
 
@@ -337,7 +361,7 @@ The entire block between `{{#items}}` and `{{/items}}` is repeated once per row 
 supplied CSV (line-item mode) or once per element in the `items` array (JSON mode). Fields
 inside the block are resolved per-row.
 
-### 6.4 CSV Batch Mode
+### 6.5 CSV Batch Mode
 
 One receipt is printed per CSV row. All scalar placeholders in the document are matched to
 CSV column headers (case-insensitive). The `{{#items}}` block is not used in this mode.
@@ -349,7 +373,7 @@ Alice,12.50,2026-03-01
 Bob,8.00,2026-03-01
 ```
 
-### 6.5 CSV Line-Item Mode
+### 6.6 CSV Line-Item Mode
 
 One receipt is printed for the entire CSV. Each CSV row becomes one iteration of the
 `{{#items}}` block. Scalar placeholders outside the block must be filled via the dialog or
@@ -363,7 +387,7 @@ Broccoli,2,2.00
 Carrot,3,3.00
 ```
 
-### 6.6 JSON Combined Mode
+### 6.7 JSON Combined Mode
 
 The JSON combined mode allows supplying all placeholder data in one structured object — useful
 for programmatic use or for the `PlaceholderMeta` fill-in dialog internally. It is handled
@@ -400,7 +424,7 @@ class Document(BaseModel):
     id: str                          # UUID4
     name: str
     description: str | None = None
-    content: str                     # ReceiptLine markdown (may contain placeholders)
+    content: str                     # encoder JS code (may contain placeholders)
     placeholder_meta: list[PlaceholderMeta] = []
     printer_settings: PrinterSettings
     tags: list[str] = []
@@ -420,7 +444,7 @@ interface ReceiptDocument {
   id: string;
   name: string;
   description?: string;
-  content: string;           // ReceiptLine markdown (may contain placeholders)
+  content: string;           // encoder JS code (may contain placeholders)
   placeholderMeta: PlaceholderMeta[];
   printerSettings: PrinterSettings;
   tags: string[];
@@ -447,18 +471,13 @@ class PlaceholderMeta(BaseModel):
 
 ```python
 class PrinterSettings(BaseModel):
-    cpl: int = 48                    # characters per line (24–96)
-    language: str = 'en'             # Receipt.js language code
-    command: str = 'escpos'          # escpos | epson | sii | citizen | generic | star | ...
-    spacing: bool = False
-    cutting: bool = True
-    upside_down: bool = False
-    margin_left: int = 0             # 0–24
-    margin_right: int = 0            # 0–24
-    gamma: float = 1.0               # 0.1–10.0
-    threshold: int = 128             # 0–255
-    print_as_image: bool = False
-    landscape: bool = False
+    columns: int = 48                    # characters per line (24–96)
+    language: str = 'en'                 # BCP 47 language code (en, de, fr, es, pt, nl, …)
+    printer_model: str = 'generic/text'  # receipt-printer-encoder printer model string
+    codepage_mapping: str = 'zjiang'     # codepage mapping identifier
+    feed_before_cut: int = 0             # extra feed lines before cut (0–10)
+    newline: str = '\n'                  # newline character(s) used by encoder
+    image_mode: str = 'column'           # column | page
 ```
 
 ### 7.4 Folder
@@ -594,7 +613,7 @@ In demo mode (static build) no authentication exists — the auth endpoints are 
 
 #### Print job request
 
-The browser generates ESC/POS bytes using `receipt-printer.js`, then POSTs the raw binary to
+The browser generates ESC/POS bytes using `receipt-printer-encoder` (via `lib/encoder.ts`), then POSTs the raw binary to
 this endpoint. The server forwards the bytes to the printer without any transformation.
 
 ```
@@ -685,7 +704,7 @@ other stores, never imported directly into components.
 |-------|----------------|
 | `documentStore` | Document list, current document, dirty flag, auto-save timer |
 | `editorStore` | Raw editor content (may differ from saved), printer settings |
-| `previewStore` | Debounced SVG output from Receipt.js |
+| `previewStore` | Debounced multi-tab preview output from receipt-printer-encoder |
 | `placeholderStore` | Detected placeholder names, fill-in dialog state, CSV data |
 | `printerStore` | Printer list and selected printer (prod only, empty in demo) |
 | `settingsStore` | App-level settings (theme, font size, default printer profile) |
@@ -695,25 +714,38 @@ other stores, never imported directly into components.
 CodeMirror 6 is instantiated in a Svelte component using a Svelte action (`use:codemirror`).
 Custom extensions:
 
-- `receiptLineSyntax` — `StreamLanguage` highlighting for pipes, properties, special characters.
+- `javascriptSyntax` — standard JavaScript (`@codemirror/lang-javascript`) syntax highlighting,
+  since document content is encoder JS code.
 - `placeholderHighlight` — marks `{{...}}` and `{{#...}}...{{/...}}` regions in a distinct
-  colour so they are visually distinct from receipt content.
-- `receiptLineCompletions` — snippet completions for the full ReceiptLine feature set (`{code:`,
-  `{align:`, `{text:`, `{image:`, etc.).
+  colour so they are visually distinct from encoder code.
 
-The editor supports the complete ReceiptLine language and does not restrict input to what any
-particular printer command set can render. The SVG preview reflects the full ReceiptLine output.
-What the physical printer actually reproduces depends on the `command` setting in PrinterSettings
-(e.g. `escpos`, `star`). This gap is expected and not an error.
+The editor supports the full JavaScript language. The encoder API is always available as
+`encoder` in document scope — users call `encoder.text(...)`, `encoder.newline()`, `encoder.rule()`,
+etc. The SVG/text preview reflects what the encoder produces given the current printer settings.
 
-### 9.4 Preview (Receipt.js)
+### 9.4 Preview (receipt-printer-encoder)
 
-The `previewStore` uses Svelte's `derived` store with a debounce of 300 ms. When the editor
-content or printer settings change, it calls `Receipt.from(markdown, options).toSVG()` and
-stores the resulting SVG string. The Preview component renders this SVG directly into the DOM
-with `{@html svgString}` inside a sandboxed scroll container.
+The `previewStore` debounces editor changes by 300 ms. When the encoder JS code or printer
+settings change, it:
 
-Receipt.js runs entirely in the browser — no server round-trip for preview.
+1. Instantiates `ReceiptPrinterEncoder` with the current `PrinterSettings` (columns, language,
+   printer model, codepage mapping, feed-before-cut, newline, image mode).
+2. Executes the user's encoder JS code in a sandboxed `Function` call with `encoder` as the
+   implicit variable.
+3. Calls `encoder.encode()` to obtain a `Uint8Array` of raw ESC/POS bytes.
+4. Parses the byte stream into a structured `TextLine[]` array (per-character cell model
+   matching the ReceiptPrinterPlayground layout).
+
+The `Preview.svelte` component renders four tabs:
+
+| Tab | Content |
+|-----|---------|
+| **Text** | Per-character cell grid: Font A (13 × 16 px) / Font B (10 × 16 px); invert, bold, italic, underline, scale, and alignment applied per character/line |
+| **Hex** | Raw hex dump of the ESC/POS byte stream |
+| **Commands** | Decoded command list (command name, parameters, description) |
+| **Binary** | Downloadable ESC/POS `.bin` file |
+
+All rendering happens in the browser — no server round-trip for preview.
 
 ### 9.5 Placeholder Resolution (Frontend)
 
@@ -723,7 +755,8 @@ The `variables.ts` utility module handles all placeholder logic in the browser:
    return a deduplicated list of names.
 2. **Scalar resolution** — accept a `Record<string, string>` map, replace all `{{field}}`
    occurrences. Built-in `{{date}}`, `{{time}}`, `{{datetime}}` are pre-populated from
-   `new Date()` before the map is applied.
+   `new Date()` before the map is applied. Built-in `{{random:length[:charset]}}` placeholders
+   are generated with `crypto.getRandomValues`.
 3. **Line-item resolution** — accept a `Record<string, string>[]` array; repeat the block
    body once per element, replacing field names within the block.
 4. **Combined resolution** — accept `{ scalars: Record<string, string>, items: Record<string, string>[] }`;
@@ -732,18 +765,18 @@ The `variables.ts` utility module handles all placeholder logic in the browser:
 ### 9.6 Print Dispatch (`lib/printing.ts`)
 
 The `printing.ts` module is the single entry point for all print operations in the frontend.
-Components never call `receipt-printer.js` or `receipt-serial.js` directly.
+Components never call `receipt-printer-encoder` or `@point-of-sale/webserial-receipt-printer` directly.
 
 Responsibilities:
 
-1. **ESC/POS generation** — call `receipt-printer.js` with the resolved ReceiptLine content and
+1. **ESC/POS generation** — call `lib/encoder.ts` (`executeEncoder`) with the resolved encoder JS content and
    the active `PrinterSettings` to produce a `Uint8Array` of ESC/POS bytes.
 2. **Path selection** — decide which print path to use:
    - If `window.__APP_CONFIG__.mode === 'demo'` or no server printer is selected: attempt Path A
      (Web Serial). If `navigator.serial` is unavailable, show a browser compatibility warning.
    - If a server printer is selected (production mode): use Path B or C depending on the
      printer's `connection` type as reported by the server.
-3. **Path A execution** — use `receipt-serial.js` / Web Serial API to write bytes directly to
+3. **Path A execution** — use `@point-of-sale/webserial-receipt-printer` / Web Serial API to write bytes directly to
    the selected port.
 4. **Path B/C execution** — POST the raw `Uint8Array` as `application/octet-stream` to
    `/api/v1/printers/{id}/print`.
@@ -816,8 +849,8 @@ Thumbnail previews are deferred to a future milestone.
 The left-centre column contains two vertically stacked regions:
 
 **Snippet Toolbar** (top, fixed height): a row of icon buttons that insert
-ReceiptLine snippets at the cursor position in the editor. Covers the full
-ReceiptLine feature set (text, barcode, image, separator, etc.). Always visible
+encoder API snippets at the cursor position in the editor. Covers the full
+encoder API feature set (text, barcode, image, separator, etc.). Always visible
 while the editor is active.
 
 **Editor** (middle, fills remaining height): the CodeMirror 6 editor. Takes up all
@@ -831,9 +864,9 @@ unloaded.
 
 ### 10.5 Preview Pane
 
-The centre-right panel shows the live SVG receipt preview rendered by Receipt.js.
+The centre-right panel shows the live multi-tab receipt preview rendered by receipt-printer-encoder.
 
-- The SVG is centred on a neutral grey background that suggests paper/roll context
+- The Text tab is centred on a neutral grey background that suggests paper/roll context
   without a literal frame graphic.
 - The preview updates with a 300 ms debounce as the user types.
 - **Batch navigation bar** (bottom of preview pane, only when a CSV is loaded): a
@@ -847,9 +880,8 @@ The centre-right panel shows the live SVG receipt preview rendered by Receipt.js
 A fixed-width panel on the far right. Open by default. Contains:
 
 - **Paper width preset** — 58 mm / 80 mm / custom (numeric input).
-- **Characters per line (CPL)** — numeric input; auto-calculated from paper width but
-  overridable.
-- **Command set** — dropdown: `escpos`, `epson`, `sii`, `citizen`, `generic`, `star`.
+- **Columns** — numeric input; auto-calculated from paper width but overridable.
+- **Printer model** — dropdown for selecting the receipt-printer-encoder printer model.
 - **Printer selection** — visible in production mode only; hidden in demo mode.
 
 The right sidebar can be collapsed to an icon rail (same pattern as the left sidebar)
@@ -865,8 +897,8 @@ than attempting a degraded layout.
 
 ## 11. Printing Pipeline
 
-ESC/POS commands are **always generated in the browser** by `receipt-printer.js`. The server is
-a transparent forwarding proxy — it never parses ReceiptLine markdown or generates ESC/POS bytes.
+ESC/POS commands are **always generated in the browser** by `receipt-printer-encoder` (via `lib/encoder.ts`). The server is
+a transparent forwarding proxy — it never generates or transforms ESC/POS bytes.
 
 ### Path A — Web Serial (demo + production, Chrome/Edge/Opera)
 
@@ -874,8 +906,8 @@ a transparent forwarding proxy — it never parses ReceiptLine markdown or gener
 Browser
   │
   │  1. Resolve placeholders in content (variables.ts)
-  │  2. receipt-printer.js → ESC/POS byte array
-  │  3. receipt-serial.js / Web Serial API
+  │  2. lib/encoder.ts (receipt-printer-encoder) → ESC/POS byte array
+  │  3. @point-of-sale/webserial-receipt-printer / Web Serial API
   │
   ▼
 USB/Serial Printer (direct, no server involved)
@@ -887,7 +919,7 @@ USB/Serial Printer (direct, no server involved)
 Browser                          Server (Python + FastAPI)
   │                                       │
   │  1. Resolve placeholders              │
-  │  2. receipt-printer.js                │
+  │  2. lib/encoder.ts                    │
   │     → ESC/POS bytes                   │
   │                                       │
   │  POST /api/v1/printers/{id}/print     │
@@ -909,7 +941,7 @@ Browser                          Server (Python + FastAPI)
 Browser                          Server (Python + FastAPI)
   │                                       │
   │  1. Resolve placeholders              │
-  │  2. receipt-printer.js                │
+  │  2. lib/encoder.ts                    │
   │     → ESC/POS bytes                   │
   │                                       │
   │  POST /api/v1/printers/{id}/print     │
@@ -942,7 +974,7 @@ ReceiptDesigner/
 │
 ├── frontend/                   # Svelte + Vite SPA
 │   ├── public/
-│   │   └── lib/                # Receipt.js files (receipt.js, receipt-printer.js, receipt-serial.js)
+│   │       └── (static assets — Receipt.js files removed; encoder is an npm package)
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Editor.svelte
@@ -965,13 +997,14 @@ ReceiptDesigner/
 │   │   │   ├── localStorageAdapter.ts
 │   │   │   └── apiAdapter.ts
 │   │   ├── lib/
-│   │   │   ├── receiptjs.ts     # Thin wrapper around Receipt.js (SVG preview + ESC/POS generation)
+│   │   │   ├── encoder.ts       # Thin wrapper around receipt-printer-encoder (executeEncoder, encodeToBytes)
+│   │   │   ├── actions.ts       # Svelte actions (focusOnMount, etc.)
 │   │   │   ├── variables.ts     # Placeholder detection & resolution
 │   │   │   ├── printing.ts      # Print path selection: Web Serial (Path A) or server POST (B/C)
 │   │   │   └── codemirror/
-│   │   │       ├── receiptLineSyntax.ts
+│   │   │       ├── javascriptSyntax.ts
 │   │   │       ├── placeholderHighlight.ts
-│   │   │       └── receiptLineCompletions.ts
+│   │   │       └── editorSetup.ts
 │   │   ├── styles/
 │   │   │   ├── global.css
 │   │   │   └── tokens.css       # CSS custom properties
@@ -1020,9 +1053,9 @@ ReceiptDesigner/
 ### Milestone 1 — Core Editor (Demo Mode)
 
 - Svelte + Vite + TypeScript scaffold.
-- CodeMirror 6 with basic ReceiptLine syntax highlighting.
-- Receipt.js live SVG preview with debounce.
-- Printer settings panel (CPL, language, command — preview only).
+- CodeMirror 6 with JavaScript syntax highlighting (encoder code).
+- receipt-printer-encoder multi-tab preview (Text / Hex / Commands / Binary) with 300 ms debounce.
+- Printer settings panel (columns, language, printer model, codepage mapping, feed-before-cut — preview only).
 - Paper width presets (58 mm / 80 mm / custom).
 - Export: SVG and PNG.
 - `LocalStorageAdapter`: save/load/delete documents.
@@ -1037,7 +1070,7 @@ ReceiptDesigner/
 - CSV batch mode (browser-side, multiple preview + download).
 - CSV line-item mode.
 - `PlaceholderMeta` editor (label, default, required).
-- **Web Serial (Path A):** `printing.ts` + `receipt-serial.js` integration; browser compatibility warning when Web Serial is unavailable.
+- **Web Serial (Path A):** `printing.ts` + `@point-of-sale/webserial-receipt-printer` integration; browser compatibility warning when Web Serial is unavailable.
 
 ### Milestone 3 — Server + Database
 
@@ -1066,7 +1099,7 @@ ReceiptDesigner/
 ### Milestone 5 — Polish
 
 - Dark mode.
-- Snippet toolbar (full ReceiptLine feature set).
+- Snippet toolbar (full encoder API feature set).
 - Keyboard shortcuts.
 - **CI (full):** frontend Vitest unit tests + Playwright e2e tests added to the CI workflow.
 
@@ -1080,18 +1113,18 @@ ReceiptDesigner/
 
 **Responsibilities:**
 - Svelte component development (Editor, Preview, Toolbar, dialogs).
-- CodeMirror 6 integration and custom ReceiptLine / placeholder syntax extensions.
+- CodeMirror 6 integration and custom JavaScript / placeholder syntax extensions.
 - Svelte store implementation.
 - CSS custom properties token system, scoped component styles.
 - `LocalStorageAdapter` and `ApiAdapter`.
 - All placeholder resolution logic in `lib/variables.ts`.
-- Print dispatch in `lib/printing.ts`: ESC/POS generation via `receipt-printer.js`, Web Serial printing via `receipt-serial.js` (Path A), and binary POST to server (Paths B & C).
+- Print dispatch in `lib/printing.ts`: ESC/POS generation via `lib/encoder.ts` (receipt-printer-encoder), Web Serial printing via `@point-of-sale/webserial-receipt-printer` (Path A), and binary POST to server (Paths B & C).
 - Export functionality (SVG, PNG, PDF).
 
 **Instructions:**
 - One concern per `.svelte` file. If a component exceeds ~150 lines of template, split it.
-- All Receipt.js calls go through `lib/receiptjs.ts`; never call Receipt.js directly in a component.
-- All print operations go through `lib/printing.ts`; never call `receipt-printer.js` or `receipt-serial.js` directly from a component or store.
+- All encoder calls go through `lib/encoder.ts`; never call receipt-printer-encoder directly in a component.
+- All print operations go through `lib/printing.ts`; never call `receipt-printer-encoder` or `@point-of-sale/webserial-receipt-printer` directly from a component or store.
 - Preview updates must be debounced (≥ 300 ms). Never call `toSVG()` on every keystroke.
 - The storage adapter is accessed only through the `adapterStore`; never imported directly.
 - The frontend bundle must work as a completely static file with no server. Test this before marking any task done.
@@ -1148,5 +1181,5 @@ ReceiptDesigner/
 | 1 | ~~Should the server support WebSocket for real-time printer status, or is polling sufficient?~~ | **Resolved** — polling every 5–10 s. No WebSocket. Sufficient for single-user use; avoids async complexity. | — |
 | 2 | ~~Authentication for the self-hosted server (none, HTTP basic auth, API token)?~~ | **Resolved** — API token. Entered once in a setup UI; stored server-side and returned as a long-lived `HttpOnly` cookie so the browser sends it automatically on every subsequent request. No re-entry needed. | — |
 | 3 | ~~Should the server serve the built frontend static files (single process), or run a separate static file server?~~ | **Resolved** — single process. FastAPI serves both the REST API and the built frontend via `StaticFiles`. No separate static server needed. | — |
-| 4 | ~~`receiptline` Python port vs. Node.js subprocess: is there a pure Python alternative?~~ | **Resolved** — no server-side ReceiptLine transform needed; ESC/POS generated in browser by `receipt-printer.js`. | — |
+| 4 | ~~`receiptline` Python port vs. Node.js subprocess: is there a pure Python alternative?~~ | **Resolved** — no server-side ReceiptLine transform needed; ESC/POS generated in browser by `receipt-printer-encoder` (via `lib/encoder.ts`). | — |
 | 5 | ~~Should batch CSV print jobs be queued (with visible progress) or fire-and-forget?~~ | **Resolved** — queued server-side with a progress polling endpoint. Frontend polls for job status and displays a progress indicator. | — |

@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { getAdapter } from './adapterStore';
 import { DEFAULT_PRINTER_SETTINGS } from '$types/index';
+import type { ReceiptDocument } from '$types/index';
 import type { LocalReceiptDocument, PrinterSettings } from '$types/index';
 import { loadCsvFromDocument, clearCsv } from './placeholderStore';
 
@@ -207,9 +208,15 @@ export async function saveCurrentDocument(
 
   try {
     const adapter = getAdapter();
-    // Strip local-only fields before sending to the adapter.
+    // csvRows/csvMode are local-only fields. Keep them out of adapter payloads in
+    // production mode, but persist them in demo mode so localStorage survives reload.
     const { csvRows, csvMode, ...adapterUpdates } = updates;
-    const updated = await adapter.updateDocument(currentId, adapterUpdates);
+    const mode = window.__APP_CONFIG__?.mode ?? 'demo';
+    const payload: Partial<Omit<ReceiptDocument, 'id' | 'createdAt' | 'isTemplate'>> =
+      mode === 'demo'
+        ? (updates as Partial<Omit<ReceiptDocument, 'id' | 'createdAt' | 'isTemplate'>>)
+        : adapterUpdates;
+    const updated = await adapter.updateDocument(currentId, payload);
     _documents.update((docs) =>
       docs.map((d) => {
         if (d.id !== currentId) return d;
