@@ -97,6 +97,9 @@ export function resolveContent(
  * @returns A Uint8Array of raw printer command bytes
  * @throws  If encoder evaluation fails or encoding fails internally
  */
-export function toEscPos(resolvedContent: string, settings: PrinterSettings): Uint8Array {
+export async function toEscPos(
+  resolvedContent: string,
+  settings: PrinterSettings,
+): Promise<Uint8Array> {
   return encodeToBytes(resolvedContent, settings);
 }

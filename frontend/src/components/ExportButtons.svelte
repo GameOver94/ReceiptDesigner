@@ -55,7 +55,7 @@
     isExportingEscpos = true;
     errorMessage = null;
     try {
-      const bytes = toEscPos(getEffectiveContent(), $printerSettings);
+      const bytes = await toEscPos(getEffectiveContent(), $printerSettings);
       triggerDownload(bytes, getFilename('bin'), 'application/octet-stream');
     } catch (err) {
       errorMessage = err instanceof Error ? err.message : 'ESC/POS export failed';

@@ -221,7 +221,7 @@ export async function print(
 
   let bytes: Uint8Array;
   try {
-    bytes = toEscPos(resolvedContent, settings);
+    bytes = await toEscPos(resolvedContent, settings);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to generate ESC/POS command';
     if (import.meta.env.DEV) console.error('[printing] toEscPos error:', err);
