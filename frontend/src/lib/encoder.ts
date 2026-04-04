@@ -259,11 +259,13 @@ export async function encodeToLines(
 // ---------------------------------------------------------------------------
 
 let _debounceTimer: ReturnType<typeof setTimeout> | undefined;
+let _debounceToken = 0;
 
 /**
  * Debounced version of encodeToCommands.
  * Fires the callback at most once per 300 ms window.
- * Calling again before 300 ms resets the timer — only the last call runs.
+ * Calling again before 300 ms resets the timer — only the last call wins,
+ * including for in-flight async Promises (stale results are discarded).
  *
  * @param jsCode   - The user's encoder JS code
  * @param settings - Printer settings
@@ -277,18 +279,22 @@ export function encodeToCommandsDebounced(
   if (_debounceTimer !== undefined) {
     clearTimeout(_debounceTimer);
   }
+  const token = ++_debounceToken;
   _debounceTimer = setTimeout(() => {
     try {
       void encodeToCommands(jsCode, settings)
         .then((result) => {
+          if (token !== _debounceToken) return;
           callback(result, null);
         })
         .catch((err: unknown) => {
+          if (token !== _debounceToken) return;
           const message = err instanceof Error ? err.message : String(err);
           if (import.meta.env.DEV) console.error('[encoder] encodeToCommandsDebounced error:', err);
           callback(null, message);
         });
     } catch (err) {
+      if (token !== _debounceToken) return;
       const message = err instanceof Error ? err.message : String(err);
       if (import.meta.env.DEV) console.error('[encoder] encodeToCommandsDebounced error:', err);
       callback(null, message);

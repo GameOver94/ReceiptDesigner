@@ -723,7 +723,12 @@
     for (const chunk of image.chunks) {
       const chunkWidth = Math.max(8, chunk.width);
       const chunkHeight = Math.max(1, chunk.height);
-      const bytesPerRow = chunkWidth >> 3;
+      // ESC/POS image rows are zero-padded to full bytes, so use ceil(width/8).
+      const bytesPerRow = Math.ceil(chunkWidth / 8);
+      // Header byte offsets by mode/language:
+      //   raster  (GS v0) : 4-byte fixed header + 4-byte size fields = 8 bytes
+      //   column  esc-pos : 3-byte command + 1-byte x/y density + 1-byte columns = 5 bytes
+      //   column  star    : 3-byte command + 1-byte columns = 4 bytes
       const skip = chunk.mode === 'raster' ? 8 : image.language === 'esc-pos' ? 5 : 4;
 
       for (let y = 0; y < chunkHeight; y += 1) {

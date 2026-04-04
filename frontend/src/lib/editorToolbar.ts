@@ -1,5 +1,5 @@
-import type { EditorView } from '@codemirror/view';
 import { foldEffect, foldable } from '@codemirror/language';
+import type { EditorView } from '@codemirror/view';
 
 export interface CommandVariation {
   label: string;
@@ -302,7 +302,7 @@ export const toolbarGroups: EditorToolbarGroup[] = [
       },
       {
         id: 'qrcode',
-        label: 'Qrcode',
+        label: 'QR code',
         icon: 'QrCode',
         snippet: ".qrcode('https://example.com')",
         preview: ".qrcode('https://example.com')",

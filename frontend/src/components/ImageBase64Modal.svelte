@@ -238,7 +238,7 @@
     <a
       href="https://github.com/NielsLeenheer/ReceiptPrinterEncoder/blob/main/documentation/commands.md#image"
       target="_blank"
-      rel="noreferrer"
+      rel="noopener noreferrer"
       class="docs-link"
     >
       Open image docs

@@ -98,8 +98,11 @@
   }
 
   function handleImagePreviewScaleChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const value = parseInt(input.value, 10);
+    const currentTarget = event.currentTarget;
+    if (!(currentTarget instanceof HTMLInputElement)) {
+      return;
+    }
+    const value = parseInt(currentTarget.value, 10);
     if (!Number.isNaN(value) && value >= 50 && value <= 150) {
       setImagePreviewScale(value / 100);
     }

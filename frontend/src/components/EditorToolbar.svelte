@@ -205,7 +205,7 @@
                     href={getCommandDocsUrl(command.docsAnchor)}
                     class="menu-docs-link"
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     Open docs
                   </a>

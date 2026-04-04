@@ -65,9 +65,10 @@ export function updatePrinterSettings(partial: Partial<PrinterSettings>): void {
   _printerSettings.update((current) => ({ ...current, ...partial }));
 }
 
-/** Update preview-only image scaling factor (0.5 - 1.5). */
+/** Update preview-only image scaling factor (0.5 - 1.5). Non-finite and out-of-range values are ignored. */
 export function setImagePreviewScale(scale: number): void {
-  _imagePreviewScale.set(scale);
+  if (!Number.isFinite(scale)) return;
+  _imagePreviewScale.set(Math.min(1.5, Math.max(0.5, scale)));
 }
 
 /**

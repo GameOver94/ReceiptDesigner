@@ -94,7 +94,7 @@ export function resolveContent(
  *
  * @param resolvedContent - JS encoder code with all placeholders already replaced
  * @param settings        - Printer settings controlling columns, language, etc.
- * @returns A Uint8Array of raw printer command bytes
+ * @returns A Promise that resolves to a Uint8Array of raw printer command bytes
  * @throws  If encoder evaluation fails or encoding fails internally
  */
 export async function toEscPos(
