@@ -5,7 +5,7 @@
   import type { EncoderCommandsOutput, EncoderLinesOutput, EncoderCommand } from '$lib/encoder';
   import { resolveContent } from '$lib/pipeline';
   import { currentDocument } from '$store/documentStore';
-  import { editorContent, printerSettings } from '$store/editorStore';
+  import { editorContent, imagePreviewScale, printerSettings } from '$store/editorStore';
   import { csvRows, csvMode, previewRowIndex, setPreviewRowIndex } from '$store/placeholderStore';
 
   // ---------------------------------------------------------------------------
@@ -195,6 +195,7 @@
     chunks: { width: number; height: number; mode: string; payload: number[] }[];
     align: 'left' | 'center' | 'right';
     language: string;
+    previewScale: number;
   }
 
   /** A line of printable characters, cut marker, or machine-code symbol preview. */
@@ -416,6 +417,7 @@
               chunks: [...imageChunks],
               align,
               language,
+              previewScale: $imagePreviewScale,
             };
           }
         }
@@ -732,7 +734,7 @@
       yOffset += chunkHeight;
     }
 
-    setCanvasDisplayScale(node, 0.75);
+    setCanvasDisplayScale(node, 0.75 * image.previewScale);
   }
 
   function imageAction(node: HTMLCanvasElement, image: RenderableImage) {

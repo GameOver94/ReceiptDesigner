@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { printerSettings, updatePrinterSettings } from '$store/editorStore';
+  import { imagePreviewScale, printerSettings, setImagePreviewScale, updatePrinterSettings } from '$store/editorStore';
   import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
   import { printerModels } from '$lib/encoder';
   import type { SerialStatus } from '$lib/printing';
@@ -90,6 +90,14 @@
   function handleImageModeChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     updatePrinterSettings({ imageMode: select.value as PrinterSettings['imageMode'] });
+  }
+
+  function handleImagePreviewScaleChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = parseFloat(input.value);
+    if (!Number.isNaN(value) && value >= 0.5 && value <= 1.5) {
+      setImagePreviewScale(value);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -296,6 +304,22 @@
       </select>
       <span id="image-mode-hint" class="setting-hint"
         >ESC/POS only. Use Raster for printers that don&#39;t support Column mode.</span
+      >
+
+      <label class="setting-label" for="image-preview-scale-input">Image Preview Scale</label>
+      <input
+        id="image-preview-scale-input"
+        type="number"
+        class="setting-input"
+        min="0.5"
+        max="1.5"
+        step="0.05"
+        value={$imagePreviewScale}
+        onchange={handleImagePreviewScaleChange}
+        aria-describedby="image-preview-scale-hint"
+      />
+      <span id="image-preview-scale-hint" class="setting-hint"
+        >Preview only. 1.0 is default. Lower values shrink previewed images.</span
       >
     </div>
   </div>
