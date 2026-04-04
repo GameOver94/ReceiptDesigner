@@ -1,5 +1,7 @@
+import type { PlaceholderMeta } from '$types/index';
+
 /**
- * variables.ts — Placeholder detection and resolution for ReceiptLine documents.
+ * variables.ts — Placeholder detection and resolution for encoder JS documents.
  *
  * All placeholder logic lives here. The server never sees placeholder syntax —
  * it stores document content as an opaque string and this module handles
@@ -8,6 +10,7 @@
  * Placeholder syntax (from docs/design.md §6):
  *   {{field_name}}               — scalar replacement
  *   {{date}} {{time}} {{datetime}} — auto-filled from system clock
+ *   {{random:length:charset}}    — random string (e.g. {{random:16:A-Z,a-z,0-9,#%<>}})
  *   {{#items}} ... {{/items}}    — line-item block, repeated per row
  */
 
@@ -21,6 +24,18 @@
  * Global flag so matchAll works correctly.
  */
 const SCALAR_RE = /\{\{([a-z0-9_]+)\}\}/g;
+
+/**
+ * Matches random placeholder syntax:
+ *   {{random:16}}
+ *   {{random:16:A-Z,a-z,0-9,#%<>}}
+ */
+const RANDOM_RE = /\{\{random:(\d+)(?::([^}]+))?\}\}/g;
+
+const UPPERCASE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const LOWERCASE = 'abcdefghijklmnopqrstuvwxyz';
+const DIGITS = '0123456789';
+const DEFAULT_RANDOM_CHARSET = `${UPPERCASE}${LOWERCASE}${DIGITS}`;
 
 /**
  * Matches the full {{#items}} ... {{/items}} block, including its contents.
@@ -54,6 +69,56 @@ function builtinDateValues(): Record<string, string> {
   };
 }
 
+function charsetFromSpec(spec: string | undefined): string {
+  if (spec === undefined || spec.trim() === '') {
+    return DEFAULT_RANDOM_CHARSET;
+  }
+
+  const chars: string[] = [];
+  for (const rawToken of spec.split(',')) {
+    const token = rawToken.trim();
+    if (token === '') continue;
+
+    if (token === 'A-Z') {
+      chars.push(...UPPERCASE);
+      continue;
+    }
+    if (token === 'a-z') {
+      chars.push(...LOWERCASE);
+      continue;
+    }
+    if (token === '0-9') {
+      chars.push(...DIGITS);
+      continue;
+    }
+
+    chars.push(...token);
+  }
+
+  if (chars.length === 0) return DEFAULT_RANDOM_CHARSET;
+  return Array.from(new Set(chars)).join('');
+}
+
+function randomString(length: number, charset: string): string {
+  if (length <= 0 || charset.length === 0) return '';
+
+  const out: string[] = [];
+  const maxUnbiased = 256 - (256 % charset.length);
+
+  while (out.length < length) {
+    const bytes = new Uint8Array(Math.max(16, (length - out.length) * 2));
+    crypto.getRandomValues(bytes);
+
+    for (const b of bytes) {
+      if (b >= maxUnbiased) continue;
+      out.push(charset[b % charset.length] ?? '');
+      if (out.length >= length) break;
+    }
+  }
+
+  return out.join('');
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -79,6 +144,22 @@ export function detectPlaceholders(content: string): string[] {
 }
 
 /**
+ * Build a scalar value map from per-field placeholder metadata.
+ *
+ * Only entries with a non-empty defaultValue are included.
+ */
+export function defaultsFromMeta(meta: PlaceholderMeta[]): Record<string, string> {
+  const defaults: Record<string, string> = {};
+  for (const entry of meta) {
+    const value = entry.defaultValue;
+    if (value !== undefined && value !== '') {
+      defaults[entry.name] = value;
+    }
+  }
+  return defaults;
+}
+
+/**
  * Return true if the content contains any placeholder syntax.
  * A document is a "template" when this is true.
  *
@@ -98,14 +179,23 @@ export function isTemplate(content: string): boolean {
  * Unresolved placeholders (names not in the map) are left as-is, so the user
  * can see which fields still need values.
  *
- * @param content - The ReceiptLine markdown string with {{field}} tags
+ * @param content - The encoder JS code string with {{field}} tags
  * @param values - Map of field name → replacement string
  */
 export function resolveScalars(content: string, values: Record<string, string>): string {
   // Merge built-in values first so user-supplied values take precedence
   const merged: Record<string, string> = { ...builtinDateValues(), ...values };
 
-  return content.replace(SCALAR_RE, (_match, name: string) => {
+  const withRandom = content.replace(RANDOM_RE, (match, lenRaw: string, charsetSpec?: string) => {
+    const length = Number.parseInt(lenRaw, 10);
+    if (!Number.isFinite(length) || length <= 0) {
+      return match;
+    }
+    const charset = charsetFromSpec(charsetSpec);
+    return randomString(length, charset);
+  });
+
+  return withRandom.replace(SCALAR_RE, (_match, name: string) => {
     const value = merged[name];
     // Leave the placeholder intact if no value was supplied, so the user
     // can see what is still unfilled.
@@ -121,7 +211,7 @@ export function resolveScalars(content: string, values: Record<string, string>):
  *
  * If no block exists in the content, the content is returned unchanged.
  *
- * @param content - The ReceiptLine markdown containing an {{#items}}...{{/items}} block
+ * @param content - The encoder JS code containing an {{#items}}...{{/items}} block
  * @param items - Array of row objects; each row maps field name → value
  */
 export function resolveLineItems(content: string, items: Record<string, string>[]): string {
@@ -148,7 +238,7 @@ export function resolveLineItems(content: string, items: Record<string, string>[
  * scalar resolution first (which handles date/time and outer scalar fields),
  * then line-item expansion.
  *
- * @param content - Raw ReceiptLine markdown with placeholder syntax
+ * @param content - Raw encoder JS code with placeholder syntax
  * @param data - Resolution data:
  *   - scalars: map of field name → value for scalar {{field}} placeholders
  *   - items: array of row objects for {{#items}}...{{/items}} expansion
@@ -160,15 +250,13 @@ export function resolve(
     items?: Record<string, string>[];
   },
 ): string {
-  let result = content;
-
-  // Step 1: resolve scalar placeholders (including built-in date/time)
-  result = resolveScalars(result, data.scalars ?? {});
-
-  // Step 2: expand the line-item block
+  // When items are provided, expand blocks first so row data has priority inside
+  // {{#items}} bodies. Then run scalar resolution as a fallback for any remaining
+  // placeholders (including outer scalars + built-in date/time).
   if (data.items !== undefined) {
-    result = resolveLineItems(result, data.items);
+    const afterItems = resolveLineItems(content, data.items);
+    return resolveScalars(afterItems, data.scalars ?? {});
   }
 
-  return result;
+  return resolveScalars(content, data.scalars ?? {});
 }

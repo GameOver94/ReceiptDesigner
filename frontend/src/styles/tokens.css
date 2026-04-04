@@ -14,55 +14,80 @@
 
 :root {
   /* --------------------------------------------------------------------------
-   * Colour — background
+   * Colour — mapped from Material Design 3 system tokens.
+   *
+   * The --md-sys-color-* custom properties are defined in public/theme/*.css
+   * (exported from Material Theme Builder). The active scheme is selected by
+   * the class on <html>: "light" | "dark" | "light-mc" | "dark-mc" | etc.
+   *
+   * All --rd-color-* tokens below are thin aliases — no raw hex values here.
+   * To swap the entire theme, replace the files in public/theme/ and change
+   * the class on <html> in index.html.
    * ---------------------------------------------------------------------- */
-  --rd-color-bg-primary: #ffffff;
-  --rd-color-bg-secondary: #f5f5f5;
-  --rd-color-bg-tertiary: #ebebeb;
+
+  /* Backgrounds — one step lighter than before so the app feels open and bright.
+   * The full MD3 surface hierarchy from lightest → darkest:
+   *   surface-container-lowest (#fff)  ← was bg-primary, still bg-primary
+   *   surface-container-low   (#f3f4e9) ← was bg-secondary, now bg-tertiary
+   *   surface-container       (#eeefe3) ← was bg-tertiary, now used for hover only
+   *   surface-container-high  (#e8e9de)
+   *   surface-container-highest (#e2e3d8)
+   * By sliding bg-secondary down to lowest and bg-tertiary down to low,
+   * the sidebar, printer panel, and toolbar are all near-white, with
+   * just enough warmth to distinguish them from pure white bg-primary panels. */
+  --rd-color-bg-primary: var(--md-sys-color-surface-container-lowest);
+  --rd-color-bg-secondary: var(--md-sys-color-surface-container-lowest);
+  --rd-color-bg-tertiary: var(--md-sys-color-surface-container-low);
   --rd-color-bg-overlay: rgba(0, 0, 0, 0.4);
 
-  /* --------------------------------------------------------------------------
-   * Colour — text
-   * ---------------------------------------------------------------------- */
-  --rd-color-text-primary: #1a1a1a;
-  --rd-color-text-secondary: #666666;
-  --rd-color-text-muted: #999999;
-  --rd-color-text-inverse: #ffffff;
+  /* Text */
+  --rd-color-text-primary: var(--md-sys-color-on-surface);
+  --rd-color-text-secondary: var(--md-sys-color-on-surface-variant);
+  --rd-color-text-muted: var(--md-sys-color-outline);
+  --rd-color-text-inverse: var(--md-sys-color-inverse-on-surface);
 
-  /* --------------------------------------------------------------------------
-   * Colour — accent / interactive
-   * ---------------------------------------------------------------------- */
-  --rd-color-accent: #2563eb;
-  --rd-color-accent-hover: #1d4ed8;
-  --rd-color-accent-light: #dbeafe;
+  /* Accent / interactive — maps to Material primary */
+  --rd-color-accent: var(--md-sys-color-primary);
+  --rd-color-accent-hover: var(--md-sys-color-on-primary-container);
+  --rd-color-accent-light: var(--md-sys-color-primary-container);
 
-  /* --------------------------------------------------------------------------
-   * Colour — borders and dividers
-   * ---------------------------------------------------------------------- */
-  --rd-color-border: #e2e8f0;
-  --rd-color-border-strong: #cbd5e1;
+  /* Borders */
+  --rd-color-border: var(--md-sys-color-outline-variant);
+  --rd-color-border-strong: var(--md-sys-color-outline);
 
-  /* --------------------------------------------------------------------------
-   * Colour — semantic states
-   * ---------------------------------------------------------------------- */
-  --rd-color-success: #16a34a;
-  --rd-color-warning: #d97706;
-  --rd-color-error: #dc2626;
-  --rd-color-error-hover: #b91c1c;
-  --rd-color-error-light: #fee2e2;
+  /* Semantic states */
+  --rd-color-success: var(--md-sys-color-tertiary);
+  --rd-color-warning: var(--md-sys-color-secondary);
+  --rd-color-error: var(--md-sys-color-error);
+  --rd-color-error-hover: var(--md-sys-color-on-error-container);
+  --rd-color-error-light: var(--md-sys-color-error-container);
 
-  /* --------------------------------------------------------------------------
-   * Colour — placeholder highlighting
-   * Used by the CodeMirror placeholderHighlight extension for {{...}} tags.
-   * ---------------------------------------------------------------------- */
-  --rd-color-placeholder: #f59e0b;
-  --rd-color-placeholder-bg: #fef3c7;
+  /* Placeholder highlighting — amber/gold; kept as fixed values because
+     Material's warm-green palette has no amber role. These are intentionally
+     not remapped to MD3 tokens so the {{...}} highlight stays visually distinct. */
+  --rd-color-placeholder: var(--md-sys-color-on-tertiary-container);
+  --rd-color-placeholder-bg: var(--md-sys-color-tertiary-container);
 
-  /* --------------------------------------------------------------------------
-   * Colour — preview pane background
-   * Neutral grey suggests paper/roll context without a literal frame graphic.
-   * ---------------------------------------------------------------------- */
-  --rd-color-preview-bg: #d1d5db;
+  /* Material surface hierarchy — used by Preview tabs and bordered tables.
+   * Shifted one step lighter to match the overall brighter feel. */
+  --rd-color-surface: var(--md-sys-color-surface);
+  --rd-color-surface-low: var(--md-sys-color-surface-container-lowest);
+  --rd-color-surface-container: var(--md-sys-color-surface-container-low);
+  --rd-color-surface-high: var(--md-sys-color-surface-container);
+  --rd-color-surface-highest: var(--md-sys-color-surface-container-high);
+  --rd-color-surface-variant: var(--md-sys-color-surface-variant);
+  --rd-color-on-surface-variant: var(--md-sys-color-on-surface-variant);
+  --rd-color-outline: var(--md-sys-color-outline);
+  --rd-color-outline-variant: var(--md-sys-color-outline-variant);
+
+  /* Primary */
+  --rd-color-primary: var(--md-sys-color-primary);
+  --rd-color-on-primary: var(--md-sys-color-on-primary);
+  --rd-color-primary-container: var(--md-sys-color-primary-container);
+  --rd-color-on-primary-container: var(--md-sys-color-on-primary-container);
+
+  /* Preview pane background — surface-container-lowest keeps it bright and paper-like */
+  --rd-color-preview-bg: var(--md-sys-color-surface-container-lowest);
 
   /* --------------------------------------------------------------------------
    * Typography
@@ -70,10 +95,10 @@
   --rd-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   --rd-font-ui: system-ui, -apple-system, sans-serif;
 
+  --rd-font-xs: 0.625rem; /* 10px */
   --rd-font-sm: 0.75rem; /* 12px */
   --rd-font-base: 0.875rem; /* 14px */
   --rd-font-lg: 1rem; /* 16px */
-  --rd-font-xl: 1.125rem; /* 18px */
 
   --rd-font-weight-normal: 400;
   --rd-font-weight-medium: 500;
@@ -95,15 +120,12 @@
   --rd-space-5: 20px;
   --rd-space-6: 24px;
   --rd-space-8: 32px;
-  --rd-space-10: 40px;
-  --rd-space-12: 48px;
 
   /* --------------------------------------------------------------------------
    * Border radius
    * ---------------------------------------------------------------------- */
   --rd-radius-sm: 4px;
   --rd-radius-md: 8px;
-  --rd-radius-lg: 12px;
   --rd-radius-full: 9999px;
 
   /* --------------------------------------------------------------------------
@@ -119,7 +141,6 @@
    * ---------------------------------------------------------------------- */
   --rd-topbar-height: 48px;
   --rd-sidebar-width: 240px;
-  --rd-sidebar-collapsed-width: 48px;
   --rd-printer-panel-width: 260px;
   --rd-csv-panel-height: 180px;
 
@@ -148,5 +169,4 @@
    * Transition
    * ---------------------------------------------------------------------- */
   --rd-transition-fast: 150ms ease;
-  --rd-transition-normal: 250ms ease;
 }

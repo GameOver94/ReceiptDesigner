@@ -70,9 +70,9 @@
   The CodeMirror instance fills the full height of its container via the
   EditorView theme setting height: 100% above.
 -->
-<section class="editor-panel" aria-label="ReceiptLine editor">
+<section class="editor-panel" aria-label="Receipt encoder editor">
   <div class="editor-toolbar">
-    <span class="toolbar-label">ReceiptLine Editor</span>
+    <span class="toolbar-label">Encoder</span>
   </div>
   <!-- CodeMirror mounts into this div via the initEditor action -->
   <div class="editor-container" use:initEditor></div>

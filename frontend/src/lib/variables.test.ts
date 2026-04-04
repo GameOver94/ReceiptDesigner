@@ -8,14 +8,53 @@
  * Test format: describe('function') > it('does X when Y')
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
+  defaultsFromMeta,
   detectPlaceholders,
   isTemplate,
   resolveScalars,
   resolveLineItems,
   resolve,
 } from './variables';
+import type { PlaceholderMeta } from '$types/index';
+
+function mockCryptoSequence(bytes: number[]): Pick<Crypto, 'getRandomValues'> {
+  let i = 0;
+  return {
+    getRandomValues<T extends ArrayBufferView | null>(array: T): T {
+      if (array === null) {
+        throw new TypeError('array cannot be null');
+      }
+      const view = array as Uint8Array;
+      for (let j = 0; j < view.length; j += 1) {
+        view[j] = bytes[i % bytes.length] ?? 0;
+        i += 1;
+      }
+      return array;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// defaultsFromMeta
+// ---------------------------------------------------------------------------
+
+describe('defaultsFromMeta', () => {
+  it('returns empty map when meta list is empty', () => {
+    expect(defaultsFromMeta([])).toEqual({});
+  });
+
+  it('includes only non-empty default values', () => {
+    const meta: PlaceholderMeta[] = [
+      { name: 'shop', label: 'Shop', defaultValue: 'Cafe', required: false },
+      { name: 'cashier', label: 'Cashier', defaultValue: '', required: false },
+      { name: 'order', label: 'Order', required: false },
+    ];
+
+    expect(defaultsFromMeta(meta)).toEqual({ shop: 'Cafe' });
+  });
+});
 
 // ---------------------------------------------------------------------------
 // detectPlaceholders
@@ -89,6 +128,9 @@ describe('isTemplate', () => {
 // ---------------------------------------------------------------------------
 
 describe('resolveScalars', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it('replaces a single scalar placeholder with its value', () => {
     expect(resolveScalars('Hello {{name}}', { name: 'Alice' })).toBe('Hello Alice');
   });
@@ -158,6 +200,27 @@ describe('resolveScalars', () => {
     // Only non-builtin placeholder — should remain as-is
     const result = resolveScalars('{{custom_field}}', {});
     expect(result).toBe('{{custom_field}}');
+  });
+
+  it('resolves {{random:length}} using default charset', () => {
+    vi.stubGlobal('crypto', mockCryptoSequence([0, 1, 2, 3, 4]));
+
+    const result = resolveScalars('{{random:5}}', {});
+    expect(result).toBe('ABCDE');
+  });
+
+  it('resolves {{random:length:charset}} with token ranges and literals', () => {
+    vi.stubGlobal('crypto', mockCryptoSequence([0, 1, 2, 3, 4, 5]));
+
+    const result = resolveScalars('{{random:6:A-Z,a-z,0-9,#%<>}}', {});
+    expect(result).toBe('ABCDEF');
+  });
+
+  it('falls back to default charset when custom charset spec is empty', () => {
+    vi.stubGlobal('crypto', mockCryptoSequence([0, 1, 2]));
+
+    const result = resolveScalars('{{random:3:  }}', {});
+    expect(result).toBe('ABC');
   });
 });
 
@@ -231,13 +294,33 @@ describe('resolve', () => {
     expect(result).toBe('My Shop\nCoffee 3.00\nTea 2.00\n\nTotal: 5.00');
   });
 
-  it('applies scalar resolution before line-item expansion (outer scalars resolved first)', () => {
-    // The outer {{date}} should be resolved even though items are present
+  it('applies line-item expansion before scalar resolution when items are present', () => {
+    // After line-item expansion, date builtins still resolve in the final pass.
     const content = '{{date}}\n{{#items}}{{item}}\n{{/items}}';
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
     const result = resolve(content, { items: [{ item: 'x' }] });
     expect(result).toMatch(/^2026-01-01\nx\n$/);
     vi.useRealTimers();
+  });
+
+  it('keeps row values inside line-item blocks when a scalar fallback exists', () => {
+    const content = '{{#items}}{{name}}\n{{/items}}';
+    const result = resolve(content, {
+      scalars: { name: 'Fallback' },
+      items: [{ name: 'Row value' }],
+    });
+
+    expect(result).toBe('Row value\n');
+  });
+
+  it('uses scalar fallback inside line-item blocks when row value is missing', () => {
+    const content = '{{#items}}{{name}}\n{{/items}}';
+    const result = resolve(content, {
+      scalars: { name: 'Fallback' },
+      items: [{}],
+    });
+
+    expect(result).toBe('Fallback\n');
   });
 
   it('works with empty data object (returns content with auto date/time filled)', () => {

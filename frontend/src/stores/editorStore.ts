@@ -28,7 +28,7 @@ const _printerSettings = writable<PrinterSettings>(DEFAULT_PRINTER_SETTINGS);
 // Read-only public views
 // ---------------------------------------------------------------------------
 
-/** The current raw ReceiptLine text in the editor. */
+/** The current raw encoder JS code in the editor. */
 export const editorContent = { subscribe: _content.subscribe };
 
 /** The current printer settings controlling SVG preview and ESC/POS generation. */

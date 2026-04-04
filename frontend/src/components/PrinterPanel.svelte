@@ -1,78 +1,95 @@
 <script lang="ts">
   import { printerSettings, updatePrinterSettings } from '$store/editorStore';
   import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
+  import { printerModels } from '$lib/encoder';
   import type { SerialStatus } from '$lib/printing';
+  import type { PrinterSettings } from '$types/index';
 
   // Paper width presets — const object per coding-style.md §6.3 (no enums)
   const PAPER_PRESETS = {
-    '58mm': { label: '58 mm', cpl: 32 },
-    '80mm': { label: '80 mm', cpl: 48 },
-    custom: { label: 'Custom', cpl: null },
+    '58mm': { label: '58 mm', columns: 32 },
+    '80mm': { label: '80 mm', columns: 48 },
+    custom: { label: 'Custom', columns: null },
   } as const;
 
   type PresetKey = keyof typeof PAPER_PRESETS;
 
-  // Precomputed typed key array — avoids a double `as` expression in the template
-  // ({#each ... as PresetKey[] as key} is ambiguous; a named const is clearer).
   const PRESET_KEYS = Object.keys(PAPER_PRESETS) as PresetKey[];
 
-  // Available command sets supported by Receipt.js
-  const COMMANDS = ['escpos', 'epson', 'sii', 'citizen', 'generic', 'star'] as const;
+  // Printer command languages supported by @point-of-sale/receipt-printer-encoder
+  const LANGUAGES: { value: PrinterSettings['language']; label: string }[] = [
+    { value: 'esc-pos', label: 'ESC/POS (Epson, most printers)' },
+    { value: 'star-prnt', label: 'Star PRNT' },
+    { value: 'star-line', label: 'Star Line Mode' },
+  ];
 
-  // Available language/encoding codes
-  const LANGUAGES = [
-    { code: 'en', label: 'English' },
-    { code: 'ja', label: 'Japanese' },
-    { code: 'ko', label: 'Korean' },
-    { code: 'zh-hans', label: 'Chinese (Simplified)' },
-    { code: 'zh-hant', label: 'Chinese (Traditional)' },
-    { code: 'th', label: 'Thai' },
+  // Common codepage mapping profiles
+  const CODEPAGE_MAPPINGS = [
+    'epson',
+    'star',
+    'bixolon',
+    'citizen',
+    'fujitsu',
+    'metapace',
+    'mpt',
+    'pos-5890',
+    'xprinter',
+    'youku',
+    'zjiang',
   ] as const;
 
-  // Determine the currently selected preset from CPL value.
-  // $derived recomputes whenever $printerSettings.cpl changes.
+  // Determine the currently selected preset from columns value.
   let selectedPreset: PresetKey = $derived(
-    $printerSettings.cpl === 32 ? '58mm' : $printerSettings.cpl === 48 ? '80mm' : 'custom',
+    $printerSettings.columns === 32 ? '58mm' : $printerSettings.columns === 48 ? '80mm' : 'custom',
   );
 
   function handlePresetChange(preset: PresetKey): void {
     const presetValue = PAPER_PRESETS[preset];
-    if (presetValue.cpl !== null) {
-      updatePrinterSettings({ cpl: presetValue.cpl });
+    if (presetValue.columns !== null) {
+      updatePrinterSettings({ columns: presetValue.columns });
     }
   }
 
-  function handleCplChange(event: Event): void {
-    // event.target is the <input type="number"> that fired this onchange handler.
+  function handleColumnsChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     const value = parseInt(input.value, 10);
     if (!isNaN(value) && value >= 24 && value <= 96) {
-      updatePrinterSettings({ cpl: value });
+      updatePrinterSettings({ columns: value });
     }
   }
 
-  function handleCommandChange(event: Event): void {
-    // event.target is the <select> for command set bound to this onchange handler.
-    const select = event.target as HTMLSelectElement;
-    updatePrinterSettings({ command: select.value });
-  }
-
   function handleLanguageChange(event: Event): void {
-    // event.target is the <select> for language/encoding bound to this onchange handler.
     const select = event.target as HTMLSelectElement;
-    updatePrinterSettings({ language: select.value });
+    const value = select.value as PrinterSettings['language'];
+    updatePrinterSettings({ language: value });
   }
 
-  function handleSpacingChange(event: Event): void {
-    // event.target is the <input type="checkbox"> for spacing bound to this onchange handler.
-    const checkbox = event.target as HTMLInputElement;
-    updatePrinterSettings({ spacing: checkbox.checked });
+  function handleCodepageMappingChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    updatePrinterSettings({ codepageMapping: select.value });
   }
 
-  function handleCuttingChange(event: Event): void {
-    // event.target is the <input type="checkbox"> for cutting bound to this onchange handler.
-    const checkbox = event.target as HTMLInputElement;
-    updatePrinterSettings({ cutting: checkbox.checked });
+  function handlePrinterModelChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    updatePrinterSettings({ printerModel: select.value });
+  }
+
+  function handleFeedBeforeCutChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = parseInt(input.value, 10);
+    if (!isNaN(value) && value >= 0 && value <= 10) {
+      updatePrinterSettings({ feedBeforeCut: value });
+    }
+  }
+
+  function handleNewlineChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    updatePrinterSettings({ newline: select.value as PrinterSettings['newline'] });
+  }
+
+  function handleImageModeChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    updatePrinterSettings({ imageMode: select.value as PrinterSettings['imageMode'] });
   }
 
   // ---------------------------------------------------------------------------
@@ -93,9 +110,6 @@
     disconnected: 'Disconnected',
     connecting: 'Connecting…',
     online: 'Connected',
-    offline: 'Printer offline',
-    coveropen: 'Cover open',
-    paperempty: 'Paper empty',
     error: 'Connection error',
   };
 
@@ -124,8 +138,7 @@
       <div
         class="connection-status"
         class:is-online={serialStatus === 'online'}
-        class:is-warning={serialStatus === 'coveropen' || serialStatus === 'paperempty'}
-        class:is-offline={serialStatus === 'offline' || serialStatus === 'error'}
+        class:is-offline={serialStatus === 'error'}
         aria-live="polite"
       >
         <span class="status-dot" aria-hidden="true"></span>
@@ -133,15 +146,9 @@
       </div>
       {#if serialStatus === 'unsupported'}
         <p class="setting-hint">
-          Web Serial requires Chrome or Edge. Export as SVG/PNG for other browsers.
+          Web Serial requires Chrome or Edge. Export ESC/POS for other browsers.
         </p>
-      {:else if serialStatus === 'coveropen'}
-        <p class="setting-hint">Close the printer cover to continue.</p>
-        <button class="btn-disconnect" onclick={handleDisconnect}>Disconnect</button>
-      {:else if serialStatus === 'paperempty'}
-        <p class="setting-hint">Load paper into the printer to continue.</p>
-        <button class="btn-disconnect" onclick={handleDisconnect}>Disconnect</button>
-      {:else if serialStatus === 'online' || serialStatus === 'offline'}
+      {:else if serialStatus === 'online'}
         <button class="btn-disconnect" onclick={handleDisconnect}>Disconnect</button>
       {:else}
         <button
@@ -156,9 +163,6 @@
 
     <!-- Paper width presets -->
     <div class="setting-group">
-      <!-- This is a group label (not a <label for=...>) — it describes a button group.
-           Using a <span> with role="group" + aria-labelledby is the correct pattern here
-           because <label> must be associated with a form control, not a button group. -->
       <span class="group-label" id="paper-width-group-label">Paper Width</span>
       <div class="preset-buttons" role="group" aria-labelledby="paper-width-group-label">
         {#each PRESET_KEYS as key}
@@ -174,40 +178,25 @@
       </div>
     </div>
 
-    <!-- Characters per line -->
+    <!-- Columns -->
     <div class="setting-group">
-      <label class="setting-label" for="cpl-input"> Characters per Line (CPL) </label>
+      <label class="setting-label" for="columns-input"> Columns </label>
       <input
-        id="cpl-input"
+        id="columns-input"
         type="number"
         class="setting-input"
         min="24"
         max="96"
-        value={$printerSettings.cpl}
-        onchange={handleCplChange}
-        aria-describedby="cpl-hint"
+        value={$printerSettings.columns}
+        onchange={handleColumnsChange}
+        aria-describedby="columns-hint"
       />
-      <span id="cpl-hint" class="setting-hint">24–96 characters</span>
+      <span id="columns-hint" class="setting-hint">Characters per line (24–96)</span>
     </div>
 
-    <!-- Command set -->
+    <!-- Command language -->
     <div class="setting-group">
-      <label class="setting-label" for="command-select">Command Set</label>
-      <select
-        id="command-select"
-        class="setting-select"
-        value={$printerSettings.command}
-        onchange={handleCommandChange}
-      >
-        {#each COMMANDS as cmd}
-          <option value={cmd}>{cmd}</option>
-        {/each}
-      </select>
-    </div>
-
-    <!-- Language / encoding -->
-    <div class="setting-group">
-      <label class="setting-label" for="language-select">Language / Encoding</label>
+      <label class="setting-label" for="language-select">Command Language</label>
       <select
         id="language-select"
         class="setting-select"
@@ -215,25 +204,99 @@
         onchange={handleLanguageChange}
       >
         {#each LANGUAGES as lang}
-          <option value={lang.code}>{lang.label}</option>
+          <option value={lang.value}>{lang.label}</option>
         {/each}
       </select>
     </div>
 
+    <!-- Printer model (optional) -->
+    <div class="setting-group">
+      <label class="setting-label" for="printer-model-select">Printer Model</label>
+      <select
+        id="printer-model-select"
+        class="setting-select"
+        value={$printerSettings.printerModel}
+        onchange={handlePrinterModelChange}
+        aria-describedby="printer-model-hint"
+      >
+        <option value="">— Generic (use codepage mapping) —</option>
+        {#each printerModels as model}
+          <option value={model.id}>{model.name}</option>
+        {/each}
+      </select>
+      <span id="printer-model-hint" class="setting-hint">
+        Selecting a model auto-configures language, codepage mapping, and capabilities.
+      </span>
+    </div>
+
+    <!-- Codepage mapping (used when printer model is empty) -->
+    <div class="setting-group">
+      <label class="setting-label" for="codepage-select">Codepage Mapping</label>
+      <select
+        id="codepage-select"
+        class="setting-select"
+        value={$printerSettings.codepageMapping}
+        onchange={handleCodepageMappingChange}
+        disabled={$printerSettings.printerModel !== ''}
+      >
+        {#each CODEPAGE_MAPPINGS as mapping}
+          <option value={mapping}>{mapping}</option>
+        {/each}
+      </select>
+      {#if $printerSettings.printerModel !== ''}
+        <span class="setting-hint">Overridden by printer model.</span>
+      {/if}
+    </div>
+
+    <!-- Feed before cut -->
+    <div class="setting-group">
+      <label class="setting-label" for="feed-before-cut-input">Feed Before Cut</label>
+      <input
+        id="feed-before-cut-input"
+        type="number"
+        class="setting-input"
+        min="0"
+        max="10"
+        value={$printerSettings.feedBeforeCut}
+        onchange={handleFeedBeforeCutChange}
+        aria-describedby="feed-before-cut-hint"
+      />
+      <span id="feed-before-cut-hint" class="setting-hint">Lines to feed before cutter (0–10)</span>
+    </div>
+
     <!-- Toggles -->
     <div class="setting-group">
-      <!-- Span acting as a visual group heading — not a form label for a single control -->
       <span class="group-label" id="options-group-label">Options</span>
 
-      <label class="checkbox-label">
-        <input type="checkbox" checked={$printerSettings.spacing} onchange={handleSpacingChange} />
-        Line spacing
-      </label>
+      <label class="setting-label" for="newline-select">Newline</label>
+      <select
+        id="newline-select"
+        class="setting-select"
+        value={$printerSettings.newline}
+        onchange={handleNewlineChange}
+        aria-describedby="newline-hint"
+      >
+        <option value={'\n\r'}>&#92;n&#92;r (standard)</option>
+        <option value={'\n'}>&#92;n only (exotic printers)</option>
+      </select>
+      <span id="newline-hint" class="setting-hint"
+        >Use &#92;n only if your printer prints blank lines between text.</span
+      >
 
-      <label class="checkbox-label">
-        <input type="checkbox" checked={$printerSettings.cutting} onchange={handleCuttingChange} />
-        Auto cut
-      </label>
+      <label class="setting-label" for="image-mode-select">Image Mode</label>
+      <select
+        id="image-mode-select"
+        class="setting-select"
+        value={$printerSettings.imageMode}
+        onchange={handleImageModeChange}
+        aria-describedby="image-mode-hint"
+      >
+        <option value="column">Column (default)</option>
+        <option value="raster">Raster (older printers)</option>
+      </select>
+      <span id="image-mode-hint" class="setting-hint"
+        >ESC/POS only. Use Raster for printers that don&#39;t support Column mode.</span
+      >
     </div>
   </div>
 </aside>
@@ -306,6 +369,11 @@
     outline-offset: 1px;
   }
 
+  .setting-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .setting-hint {
     font-size: var(--rd-font-sm);
     color: var(--rd-color-text-muted);
@@ -342,22 +410,6 @@
     background-color: var(--rd-color-bg-tertiary);
   }
 
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: var(--rd-space-2);
-    font-size: var(--rd-font-base);
-    color: var(--rd-color-text-primary);
-    cursor: pointer;
-  }
-
-  .checkbox-label input[type='checkbox'] {
-    width: var(--rd-space-4);
-    height: var(--rd-space-4);
-    cursor: pointer;
-    accent-color: var(--rd-color-accent);
-  }
-
   /* ── Printer connection ─────────────────────────────────────────────── */
 
   .connection-status {
@@ -383,14 +435,6 @@
 
   .connection-status.is-online .status-text {
     color: var(--rd-color-success);
-  }
-
-  .connection-status.is-warning .status-dot {
-    background-color: var(--rd-color-warning);
-  }
-
-  .connection-status.is-warning .status-text {
-    color: var(--rd-color-warning);
   }
 
   .connection-status.is-offline .status-dot {

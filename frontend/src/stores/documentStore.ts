@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { getAdapter } from './adapterStore';
 import { DEFAULT_PRINTER_SETTINGS } from '$types/index';
+import type { ReceiptDocument } from '$types/index';
 import type { LocalReceiptDocument, PrinterSettings } from '$types/index';
 import { loadCsvFromDocument, clearCsv } from './placeholderStore';
 
@@ -190,8 +191,12 @@ export async function createDocument(name = 'Untitled'): Promise<void> {
  * Save the currently open document with new content and/or printer settings.
  * Updates both the adapter and the in-memory store.
  *
- * `csvRows` and `csvMode` are local-only fields (not sent to the adapter).
- * When present in `updates` they are applied to the in-memory store only.
+ * `csvRows` and `csvMode` are local-only fields (not part of the `ReceiptDocument`
+ * schema). In **production mode** they are stripped from the adapter payload so
+ * the server never sees them. In **demo mode** they are included in the payload so
+ * that `LocalStorageAdapter` can persist them across page reloads.
+ * In both modes any new `csvRows`/`csvMode` values are applied to the in-memory
+ * store after the adapter call completes.
  */
 export async function saveCurrentDocument(
   updates: Partial<Omit<LocalReceiptDocument, 'id' | 'createdAt' | 'isTemplate'>>,
@@ -207,9 +212,18 @@ export async function saveCurrentDocument(
 
   try {
     const adapter = getAdapter();
-    // Strip local-only fields before sending to the adapter.
+    // csvRows/csvMode are local-only fields. In production mode strip them so the
+    // server never sees them; in demo mode include them so LocalStorageAdapter
+    // persists them across page reloads (LocalReceiptDocument is structurally a
+    // superset of ReceiptDocument, so passing it as the narrower type is safe).
     const { csvRows, csvMode, ...adapterUpdates } = updates;
-    const updated = await adapter.updateDocument(currentId, adapterUpdates);
+    const mode = window.__APP_CONFIG__?.mode ?? 'demo';
+    const payload: Partial<Omit<ReceiptDocument, 'id' | 'createdAt' | 'isTemplate'>> =
+      mode === 'demo'
+        ? // LocalReceiptDocument extends ReceiptDocument — safe to widen.
+          (updates as Partial<Omit<ReceiptDocument, 'id' | 'createdAt' | 'isTemplate'>>)
+        : adapterUpdates;
+    const updated = await adapter.updateDocument(currentId, payload);
     _documents.update((docs) =>
       docs.map((d) => {
         if (d.id !== currentId) return d;

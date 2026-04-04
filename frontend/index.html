@@ -1,10 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ReceiptDesigner</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- Material Theme Builder CSS exports (public/theme/).
+         Swap these files to change the entire colour scheme without touching source code.
+         The active scheme class is set on <html> above: "light" | "dark" | "light-hc" etc. -->
+    <link rel="stylesheet" href="./theme/light.css" />
+    <link rel="stylesheet" href="./theme/dark.css" />
+    <link rel="stylesheet" href="./theme/light-mc.css" />
+    <link rel="stylesheet" href="./theme/dark-mc.css" />
+    <link rel="stylesheet" href="./theme/light-hc.css" />
+    <link rel="stylesheet" href="./theme/dark-hc.css" />
   </head>
   <body>
     <!--
@@ -20,19 +29,6 @@
     <script>
       window.__APP_CONFIG__ = { mode: 'demo' };
     </script>
-
-    <!--
-      Receipt.js is loaded as UMD globals from local files (not npm packages).
-      This is intentional: Receipt.js is not published to npm, so we vendor it
-      in public/lib/ and load it via <script> tags. The files must be downloaded
-      from https://github.com/receiptline/receiptline and placed in public/lib/.
-
-      The scripts are loaded before the Svelte app so window.Receipt is available
-      when the first preview render runs.
-    -->
-    <script src="./lib/receipt.js"></script>
-    <script src="./lib/receipt-printer.js"></script>
-    <script src="./lib/receipt-serial.js"></script>
 
     <!-- The Svelte app mounts here -->
     <div id="app"></div>

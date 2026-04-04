@@ -23,6 +23,7 @@
   import { doNew, doSaveAs, doRename, doSave, doDelete, doRevert } from '$lib/topBarActions';
   import { isTemplate } from '$lib/variables';
   import { resolveContent } from '$lib/pipeline';
+  import { appSettings, setTheme } from '$store/settingsStore';
   import type { PlaceholderMeta } from '$types/index';
 
   let isSaving = $state(false);
@@ -49,6 +50,11 @@
   let hasDocument = $derived($currentDocument !== null);
   let isInScratch = $derived($isScratch);
   let isDemo = $derived(window.__APP_CONFIG__?.mode === 'demo');
+  let isDark = $derived($appSettings.theme === 'dark');
+
+  function handleToggleTheme(): void {
+    setTheme(isDark ? 'light' : 'dark');
+  }
 
   /**
    * Whether the current document is a template (content contains {{}}).
@@ -177,18 +183,9 @@
     const mode = $csvMode;
     const rows = $csvRows;
 
-    // Build meta-default scalar overrides (used by line-item and no-CSV paths).
-    const defaultScalars: Record<string, string> = {};
-    for (const name of $detectedPlaceholders) {
-      const metaEntry = currentMeta.find((m) => m.name === name);
-      if (metaEntry?.defaultValue !== undefined && metaEntry.defaultValue !== '') {
-        defaultScalars[name] = metaEntry.defaultValue;
-      }
-    }
-
     if (mode === 'batch' && rows.length > 0) {
       // One receipt per CSV row — resolveContent returns all rows as an array.
-      const resolved = resolveContent(content, rows, mode, 0, false, defaultScalars);
+      const resolved = resolveContent(content, rows, mode, 0, false, currentMeta);
       const jobs = resolved.map((c) => ({ content: c, settings: $printerSettings }));
       printStatusMessage = null;
       try {
@@ -203,15 +200,12 @@
         printStatusMessage = err instanceof Error ? err.message : 'Print failed.';
         if (import.meta.env.DEV) console.error('[TopBar] batch print error:', err);
       }
-      clearTimeout(_printStatusTimer ?? undefined);
-      _printStatusTimer = setTimeout(() => {
-        printStatusMessage = null;
-      }, 8000);
+      scheduleStatusAutoDismiss();
       return;
     }
 
     // Line-item mode or no CSV: resolveContent returns a single resolved string.
-    const [resolved = content] = resolveContent(content, rows, mode, 0, false, defaultScalars);
+    const [resolved = content] = resolveContent(content, rows, mode, 0, false, currentMeta);
     await _doPrint(resolved);
   }
 
@@ -240,6 +234,10 @@
       printStatusMessage = err instanceof Error ? err.message : 'Print failed.';
       if (import.meta.env.DEV) console.error('[TopBar] print error:', err);
     }
+    scheduleStatusAutoDismiss();
+  }
+
+  function scheduleStatusAutoDismiss(): void {
     clearTimeout(_printStatusTimer ?? undefined);
     _printStatusTimer = setTimeout(() => {
       printStatusMessage = null;
@@ -301,6 +299,14 @@
         Demo
       </span>
     {/if}
+    <button
+      class="theme-toggle"
+      onclick={handleToggleTheme}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? '☀' : '☾'}
+    </button>
   </div>
 
   <div class="top-bar-center">
@@ -475,6 +481,32 @@
     background-color: var(--rd-color-accent-light);
     color: var(--rd-color-accent);
     border-radius: var(--rd-radius-full);
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: var(--rd-font-base);
+    background: none;
+    border: 1px solid var(--rd-color-border);
+    border-radius: var(--rd-radius-full);
+    color: var(--rd-color-text-secondary);
+    cursor: pointer;
+    transition:
+      background-color var(--rd-transition-fast),
+      color var(--rd-transition-fast),
+      border-color var(--rd-transition-fast);
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  .theme-toggle:hover {
+    background-color: var(--rd-color-bg-tertiary);
+    color: var(--rd-color-text-primary);
+    border-color: var(--rd-color-border-strong);
   }
 
   .top-bar-center {
