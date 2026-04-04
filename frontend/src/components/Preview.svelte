@@ -1,10 +1,5 @@
 <script lang="ts">
-  import {
-    encodeToCommands,
-    encodeToCommandsDebounced,
-    encodeToLines,
-    encodeToBytes,
-  } from '$lib/encoder';
+  import { encodeToCommands, encodeToCommandsDebounced, encodeToBytes } from '$lib/encoder';
   import type { EncoderCommandLine } from '$lib/encoder';
   import bwipjs from 'bwip-js';
   import type { EncoderCommandsOutput, EncoderLinesOutput, EncoderCommand } from '$lib/encoder';
@@ -56,51 +51,9 @@
   // Main render effect
   // ---------------------------------------------------------------------------
 
-  $effect(() => {
-    const content = $editorContent;
-    const settings = $printerSettings;
-    const rows = $csvRows;
-    const mode = $csvMode;
-    const rowIndex = $previewRowIndex;
-    const meta = $currentDocument?.placeholderMeta ?? [];
-    const modeError = lineItemModeError(content, mode);
-
-    if (modeError !== null) {
-      commandsOutput = null;
-      encodeError = modeError;
-      return;
-    }
-
-    const [effectiveContent = content] = resolveContent(content, rows, mode, rowIndex, true, meta);
-
-    if (isBatchMode) {
-      // Immediate render when navigating batch rows — skip debounce.
-      try {
-        commandsOutput = encodeToCommands(effectiveContent, settings);
-        encodeError = null;
-      } catch (err) {
-        commandsOutput = null;
-        encodeError = err instanceof Error ? err.message : String(err);
-      }
-      return;
-    }
-
-    encodeToCommandsDebounced(effectiveContent, settings, (result, error) => {
-      commandsOutput = result;
-      encodeError = error;
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // Derived per-tab data (computed lazily from commandsOutput)
-  // ---------------------------------------------------------------------------
-
-  /** Columns for the current settings — used by Text tab for line width */
-  let columns = $derived($printerSettings.columns);
-
   /**
-   * Resolved effective content for the Encoded and Output tabs.
-   * Avoids calling resolveContent() more than once per reactive update.
+   * Resolved effective content reused across tabs/effects.
+   * Keeps placeholder resolution centralized in one reactive computation.
    */
   let effectiveContent = $derived(
     $editorContent.trim() === ''
@@ -114,6 +67,45 @@
           $currentDocument?.placeholderMeta ?? [],
         )[0] ?? $editorContent),
   );
+
+  $effect(() => {
+    const content = $editorContent;
+    const settings = $printerSettings;
+    const mode = $csvMode;
+    const modeError = lineItemModeError(content, mode);
+
+    if (modeError !== null) {
+      commandsOutput = null;
+      encodeError = modeError;
+      return;
+    }
+
+    const contentToEncode = effectiveContent ?? content;
+
+    if (isBatchMode) {
+      // Immediate render when navigating batch rows — skip debounce.
+      try {
+        commandsOutput = encodeToCommands(contentToEncode, settings);
+        encodeError = null;
+      } catch (err) {
+        commandsOutput = null;
+        encodeError = err instanceof Error ? err.message : String(err);
+      }
+      return;
+    }
+
+    encodeToCommandsDebounced(contentToEncode, settings, (result, error) => {
+      commandsOutput = result;
+      encodeError = error;
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Derived per-tab data (computed lazily from commandsOutput)
+  // ---------------------------------------------------------------------------
+
+  /** Columns for the current settings — used by Text tab for line width */
+  let columns = $derived($printerSettings.columns);
 
   let modeValidationError = $derived(lineItemModeError($editorContent, $csvMode));
   let encodeErrorTitle = $derived(
@@ -432,12 +424,9 @@
 
   let linesOutput: EncoderLinesOutput = $derived(
     (() => {
-      if (effectiveContent === null || modeValidationError !== null) return [];
-      try {
-        return encodeToLines(effectiveContent, $printerSettings);
-      } catch {
-        return [];
-      }
+      if (activeTab !== 'encoded') return [];
+      if (commandsOutput === null || modeValidationError !== null) return [];
+      return commandsOutput.map((lineObj) => lineObj.commands);
     })(),
   );
 
@@ -471,6 +460,7 @@
 
   let hexDump: HexDumpRow[] = $derived(
     (() => {
+      if (activeTab !== 'output') return [];
       if (effectiveContent === null || modeValidationError !== null) return [];
       try {
         const bytes = encodeToBytes(effectiveContent, $printerSettings);
@@ -535,8 +525,32 @@
     'code128-auto': 'code128',
   };
 
-  function drawBarcode(node: HTMLCanvasElement, barcode: RenderableBarcode): void {
+  const SYMBOL_PREVIEW_SCALE = 0.33;
+
+  function clearCanvas(node: HTMLCanvasElement): void {
+    const ctx = node.getContext('2d');
+    if (ctx !== null) {
+      ctx.clearRect(0, 0, node.width, node.height);
+    }
+  }
+
+  function setCanvasDisplayScale(node: HTMLCanvasElement, scale: number): void {
+    const safeScale = Math.max(0.05, scale);
+    node.style.width = `${Math.max(1, Math.round(node.width * safeScale))}px`;
+    node.style.height = `${Math.max(1, Math.round(node.height * safeScale))}px`;
+  }
+
+  function drawWithFallback(node: HTMLCanvasElement, drawFn: () => void, scale: number = 1): void {
     try {
+      drawFn();
+      setCanvasDisplayScale(node, scale);
+    } catch {
+      clearCanvas(node);
+    }
+  }
+
+  function drawBarcode(node: HTMLCanvasElement, barcode: RenderableBarcode): void {
+    drawWithFallback(node, () => {
       const bcid = BARCODE_BCIDS[barcode.symbology] ?? 'code128';
       const height = Math.max(1, barcode.height / Math.max(1, barcode.width) / 4);
 
@@ -550,12 +564,7 @@
         paddingwidth: 0,
         paddingheight: 0,
       });
-    } catch {
-      const ctx = node.getContext('2d');
-      if (ctx !== null) {
-        ctx.clearRect(0, 0, node.width, node.height);
-      }
-    }
+    });
   }
 
   function barcodeAction(node: HTMLCanvasElement, barcode: RenderableBarcode) {
@@ -568,21 +577,20 @@
   }
 
   function drawQrcode(node: HTMLCanvasElement, qrcode: RenderableQrcode): void {
-    try {
-      bwipjs.toCanvas(node, {
-        bcid: 'qrcode',
-        text: qrcode.data,
-        eclevel: qrcode.errorlevel.toUpperCase(),
-        scale: Math.max(1, qrcode.size),
-        paddingwidth: 0,
-        paddingheight: 0,
-      });
-    } catch {
-      const ctx = node.getContext('2d');
-      if (ctx !== null) {
-        ctx.clearRect(0, 0, node.width, node.height);
-      }
-    }
+    drawWithFallback(
+      node,
+      () => {
+        bwipjs.toCanvas(node, {
+          bcid: 'qrcode',
+          text: qrcode.data,
+          eclevel: qrcode.errorlevel.toUpperCase(),
+          scale: Math.max(1, qrcode.size),
+          paddingwidth: 0,
+          paddingheight: 0,
+        });
+      },
+      SYMBOL_PREVIEW_SCALE,
+    );
   }
 
   function qrcodeAction(node: HTMLCanvasElement, qrcode: RenderableQrcode) {
@@ -595,24 +603,23 @@
   }
 
   function drawPdf417(node: HTMLCanvasElement, pdf417: RenderablePdf417): void {
-    try {
-      bwipjs.toCanvas(node, {
-        bcid: 'pdf417',
-        text: pdf417.data,
-        eclevel: pdf417.errorlevel,
-        rows: pdf417.rows,
-        columns: pdf417.columns,
-        scaleX: Math.max(1, pdf417.width * 2),
-        scaleY: Math.max(1, Math.round((pdf417.height * pdf417.width) / 2)),
-        paddingwidth: 0,
-        paddingheight: 0,
-      });
-    } catch {
-      const ctx = node.getContext('2d');
-      if (ctx !== null) {
-        ctx.clearRect(0, 0, node.width, node.height);
-      }
-    }
+    drawWithFallback(
+      node,
+      () => {
+        bwipjs.toCanvas(node, {
+          bcid: 'pdf417',
+          text: pdf417.data,
+          eclevel: pdf417.errorlevel,
+          rows: pdf417.rows,
+          columns: pdf417.columns,
+          scaleX: Math.max(1, pdf417.width * 2),
+          scaleY: Math.max(1, Math.round((pdf417.height * pdf417.width) / 2)),
+          paddingwidth: 0,
+          paddingheight: 0,
+        });
+      },
+      SYMBOL_PREVIEW_SCALE,
+    );
   }
 
   function pdf417Action(node: HTMLCanvasElement, pdf417: RenderablePdf417) {
@@ -1058,12 +1065,10 @@
 
   .qrcode-canvas {
     display: block;
-    zoom: 33%;
   }
 
   .pdf417-canvas {
     display: block;
-    zoom: 33%;
   }
 
   .receipt-line.align-center .symbol-wrap {

@@ -349,6 +349,25 @@ encoder.line('PIN: {{random:6:0-9}}');
 encoder.line('Password: {{random:20:A-Z,a-z,0-9,#%<>}}');
 ```
 
+When the same random value must be reused multiple times in one receipt, assign it
+once to a JavaScript variable and print that variable where needed:
+
+```js
+const password = '{{random:20}}';
+
+encoder
+  .initialize()
+  .codepage('auto')
+  .rule()
+  .line('Text')
+  .line('{{datetime}}')
+  .line(password)
+  .newline();
+```
+
+The placeholder is resolved before encoder execution, so all references to
+`password` in that run use the same generated random string.
+
 ### 6.4 Line-Item Block
 
 ```

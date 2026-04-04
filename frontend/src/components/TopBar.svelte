@@ -200,10 +200,7 @@
         printStatusMessage = err instanceof Error ? err.message : 'Print failed.';
         if (import.meta.env.DEV) console.error('[TopBar] batch print error:', err);
       }
-      clearTimeout(_printStatusTimer ?? undefined);
-      _printStatusTimer = setTimeout(() => {
-        printStatusMessage = null;
-      }, 8000);
+      scheduleStatusAutoDismiss();
       return;
     }
 
@@ -237,6 +234,10 @@
       printStatusMessage = err instanceof Error ? err.message : 'Print failed.';
       if (import.meta.env.DEV) console.error('[TopBar] print error:', err);
     }
+    scheduleStatusAutoDismiss();
+  }
+
+  function scheduleStatusAutoDismiss(): void {
     clearTimeout(_printStatusTimer ?? undefined);
     _printStatusTimer = setTimeout(() => {
       printStatusMessage = null;

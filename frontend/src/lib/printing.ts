@@ -135,6 +135,14 @@ export function connectSerial(): void {
   const printer = _getPrinter();
   printer.connect().catch((err: unknown) => {
     if (import.meta.env.DEV) console.error('[printing] connectSerial error:', err);
+    const name =
+      typeof err === 'object' && err !== null && 'name' in err && typeof err.name === 'string'
+        ? err.name
+        : '';
+    if (name === 'NotFoundError' || name === 'AbortError') {
+      _setStatus('disconnected');
+      return;
+    }
     _setStatus('error');
   });
 }

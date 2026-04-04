@@ -77,7 +77,7 @@
   function handleFeedBeforeCutChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     const value = parseInt(input.value, 10);
-    if (!isNaN(value) && value >= 0 && value <= 20) {
+    if (!isNaN(value) && value >= 0 && value <= 10) {
       updatePrinterSettings({ feedBeforeCut: value });
     }
   }
@@ -256,12 +256,12 @@
         type="number"
         class="setting-input"
         min="0"
-        max="20"
+        max="10"
         value={$printerSettings.feedBeforeCut}
         onchange={handleFeedBeforeCutChange}
         aria-describedby="feed-before-cut-hint"
       />
-      <span id="feed-before-cut-hint" class="setting-hint">Lines to feed before cutter (0–20)</span>
+      <span id="feed-before-cut-hint" class="setting-hint">Lines to feed before cutter (0–10)</span>
     </div>
 
     <!-- Toggles -->
