@@ -10,7 +10,7 @@ import type { PrinterSettings } from '$types/index';
  * The editor stores plain JavaScript code that uses the `encoder` variable, e.g.:
  *   encoder.initialize().line('Hello World').rule().cut()
  *
- * runUserCode() evaluates this code synchronously, injects an `encoder` instance,
+ * runUserCode() evaluates this code (async-capable), injects an `encoder` instance,
  * and returns the resulting encoder instance. Callers can then call .encode() on
  * the result to obtain bytes, commands, or lines depending on the preview tab
  * needed. This mirrors the playground's utils/encoder.js approach.
@@ -181,7 +181,10 @@ function settingsToEncoderOptions(settings: PrinterSettings): EncoderOptions {
  * @returns The encoder instance after running user code
  * @throws  On evaluation or runtime error (caller should catch and show a toast)
  */
-export function runUserCode(jsCode: string, settings: PrinterSettings): EncoderInstance {
+export async function runUserCode(
+  jsCode: string,
+  settings: PrinterSettings,
+): Promise<EncoderInstance> {
   const opts = settingsToEncoderOptions(settings);
   // vite-env.d.ts declares the constructor as returning `unknown`.
   // We narrow to our typed surface via `as unknown as EncoderInstance`.
@@ -192,10 +195,13 @@ export function runUserCode(jsCode: string, settings: PrinterSettings): EncoderI
     return encoder;
   }
 
-  // Pass the script as-is. The `encoder` variable is in scope as a parameter.
-  // Both "encoder.initialize().line('Hi').cut()" (expression) and multi-statement
-  // imperative scripts work identically — all encoder methods mutate and return `this`.
-  new Function('encoder', trimmed)(encoder);
+  // Execute user code in an async function so snippets can use `await`.
+  // Both chain and imperative styles still work because methods mutate `encoder`.
+  const AsyncFunction = Object.getPrototypeOf(async function () {
+    // no-op
+  }).constructor as new (...args: string[]) => (encoder: EncoderInstance) => Promise<void>;
+  const run = new AsyncFunction('encoder', trimmed);
+  await run(encoder);
 
   return encoder;
 }
@@ -208,8 +214,11 @@ export function runUserCode(jsCode: string, settings: PrinterSettings): EncoderI
  * @returns Uint8Array of raw printer command bytes
  * @throws  On evaluation or encoding error
  */
-export function encodeToBytes(jsCode: string, settings: PrinterSettings): Uint8Array {
-  const enc = runUserCode(jsCode, settings);
+export async function encodeToBytes(
+  jsCode: string,
+  settings: PrinterSettings,
+): Promise<Uint8Array> {
+  const enc = await runUserCode(jsCode, settings);
   return enc.encode();
 }
 
@@ -221,8 +230,11 @@ export function encodeToBytes(jsCode: string, settings: PrinterSettings): Uint8A
  * @param settings - Printer settings
  * @returns Array of per-line command token arrays
  */
-export function encodeToCommands(jsCode: string, settings: PrinterSettings): EncoderCommandsOutput {
-  const enc = runUserCode(jsCode, settings);
+export async function encodeToCommands(
+  jsCode: string,
+  settings: PrinterSettings,
+): Promise<EncoderCommandsOutput> {
+  const enc = await runUserCode(jsCode, settings);
   return enc.encode('commands');
 }
 
@@ -234,8 +246,11 @@ export function encodeToCommands(jsCode: string, settings: PrinterSettings): Enc
  * @param settings - Printer settings
  * @returns Array of line objects with type and bytes
  */
-export function encodeToLines(jsCode: string, settings: PrinterSettings): EncoderLinesOutput {
-  const enc = runUserCode(jsCode, settings);
+export async function encodeToLines(
+  jsCode: string,
+  settings: PrinterSettings,
+): Promise<EncoderLinesOutput> {
+  const enc = await runUserCode(jsCode, settings);
   return enc.encode('lines');
 }
 
@@ -244,11 +259,13 @@ export function encodeToLines(jsCode: string, settings: PrinterSettings): Encode
 // ---------------------------------------------------------------------------
 
 let _debounceTimer: ReturnType<typeof setTimeout> | undefined;
+let _debounceToken = 0;
 
 /**
  * Debounced version of encodeToCommands.
  * Fires the callback at most once per 300 ms window.
- * Calling again before 300 ms resets the timer — only the last call runs.
+ * Calling again before 300 ms resets the timer — only the last call wins,
+ * including for in-flight async Promises (stale results are discarded).
  *
  * @param jsCode   - The user's encoder JS code
  * @param settings - Printer settings
@@ -262,11 +279,22 @@ export function encodeToCommandsDebounced(
   if (_debounceTimer !== undefined) {
     clearTimeout(_debounceTimer);
   }
+  const token = ++_debounceToken;
   _debounceTimer = setTimeout(() => {
     try {
-      const result = encodeToCommands(jsCode, settings);
-      callback(result, null);
+      void encodeToCommands(jsCode, settings)
+        .then((result) => {
+          if (token !== _debounceToken) return;
+          callback(result, null);
+        })
+        .catch((err: unknown) => {
+          if (token !== _debounceToken) return;
+          const message = err instanceof Error ? err.message : String(err);
+          if (import.meta.env.DEV) console.error('[encoder] encodeToCommandsDebounced error:', err);
+          callback(null, message);
+        });
     } catch (err) {
+      if (token !== _debounceToken) return;
       const message = err instanceof Error ? err.message : String(err);
       if (import.meta.env.DEV) console.error('[encoder] encodeToCommandsDebounced error:', err);
       callback(null, message);

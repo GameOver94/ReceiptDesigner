@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { printerSettings, updatePrinterSettings } from '$store/editorStore';
+  import {
+    imagePreviewScale,
+    printerSettings,
+    setImagePreviewScale,
+    updatePrinterSettings,
+  } from '$store/editorStore';
   import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
   import { printerModels } from '$lib/encoder';
   import type { SerialStatus } from '$lib/printing';
@@ -90,6 +95,17 @@
   function handleImageModeChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     updatePrinterSettings({ imageMode: select.value as PrinterSettings['imageMode'] });
+  }
+
+  function handleImagePreviewScaleChange(event: Event): void {
+    const currentTarget = event.currentTarget;
+    if (!(currentTarget instanceof HTMLInputElement)) {
+      return;
+    }
+    const value = parseInt(currentTarget.value, 10);
+    if (!Number.isNaN(value) && value >= 50 && value <= 150) {
+      setImagePreviewScale(value / 100);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -297,6 +313,23 @@
       <span id="image-mode-hint" class="setting-hint"
         >ESC/POS only. Use Raster for printers that don&#39;t support Column mode.</span
       >
+
+      <label class="setting-label" for="image-preview-scale-input">Image Preview Scale</label>
+      <input
+        id="image-preview-scale-input"
+        type="number"
+        class="setting-input"
+        min="50"
+        max="150"
+        step="1"
+        value={Math.round($imagePreviewScale * 100)}
+        onchange={handleImagePreviewScaleChange}
+        aria-describedby="image-preview-scale-hint"
+      />
+      <span class="setting-suffix" aria-hidden="true">%</span>
+      <span id="image-preview-scale-hint" class="setting-hint"
+        >Preview only. Default is 67%. Lower values shrink previewed images.</span
+      >
     </div>
   </div>
 </aside>
@@ -377,6 +410,11 @@
   .setting-hint {
     font-size: var(--rd-font-sm);
     color: var(--rd-color-text-muted);
+  }
+
+  .setting-suffix {
+    font-size: var(--rd-font-sm);
+    color: var(--rd-color-text-secondary);
   }
 
   .preset-buttons {

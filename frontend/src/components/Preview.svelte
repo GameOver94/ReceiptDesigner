@@ -5,7 +5,7 @@
   import type { EncoderCommandsOutput, EncoderLinesOutput, EncoderCommand } from '$lib/encoder';
   import { resolveContent } from '$lib/pipeline';
   import { currentDocument } from '$store/documentStore';
-  import { editorContent, printerSettings } from '$store/editorStore';
+  import { editorContent, imagePreviewScale, printerSettings } from '$store/editorStore';
   import { csvRows, csvMode, previewRowIndex, setPreviewRowIndex } from '$store/placeholderStore';
 
   // ---------------------------------------------------------------------------
@@ -21,6 +21,8 @@
   ];
 
   let activeTab = $state<PreviewTab>('text');
+  let commandRunVersion = 0;
+  let outputRunVersion = 0;
 
   // ---------------------------------------------------------------------------
   // Encode output state
@@ -81,23 +83,52 @@
     }
 
     const contentToEncode = effectiveContent ?? content;
+    const runVersion = commandRunVersion + 1;
+    commandRunVersion = runVersion;
 
     if (isBatchMode) {
       // Immediate render when navigating batch rows — skip debounce.
-      try {
-        commandsOutput = encodeToCommands(contentToEncode, settings);
-        encodeError = null;
-      } catch (err) {
-        commandsOutput = null;
-        encodeError = err instanceof Error ? err.message : String(err);
-      }
+      void encodeToCommands(contentToEncode, settings)
+        .then((result) => {
+          if (runVersion !== commandRunVersion) return;
+          commandsOutput = result;
+          encodeError = null;
+        })
+        .catch((err: unknown) => {
+          if (runVersion !== commandRunVersion) return;
+          commandsOutput = null;
+          encodeError = err instanceof Error ? err.message : String(err);
+        });
       return;
     }
 
     encodeToCommandsDebounced(contentToEncode, settings, (result, error) => {
+      if (runVersion !== commandRunVersion) return;
       commandsOutput = result;
       encodeError = error;
     });
+  });
+
+  $effect(() => {
+    if (activeTab !== 'output' || effectiveContent === null || modeValidationError !== null) {
+      hexDump = [];
+      return;
+    }
+
+    const content = effectiveContent;
+    const settings = $printerSettings;
+    const runVersion = outputRunVersion + 1;
+    outputRunVersion = runVersion;
+
+    void encodeToBytes(content, settings)
+      .then((bytes) => {
+        if (outputRunVersion !== runVersion) return;
+        hexDump = _buildHexDump(bytes);
+      })
+      .catch(() => {
+        if (outputRunVersion !== runVersion) return;
+        hexDump = [];
+      });
   });
 
   // ---------------------------------------------------------------------------
@@ -167,6 +198,14 @@
     align: 'left' | 'center' | 'right';
   }
 
+  interface RenderableImage {
+    width: number;
+    chunks: { width: number; height: number; mode: string; payload: number[] }[];
+    align: 'left' | 'center' | 'right';
+    language: string;
+    previewScale: number;
+  }
+
   /** A line of printable characters, cut marker, or machine-code symbol preview. */
   type TextLine =
     | { kind: 'chars'; chars: TextChar[] }
@@ -174,15 +213,24 @@
     | { kind: 'cut' }
     | { kind: 'barcode'; barcode: RenderableBarcode }
     | { kind: 'qrcode'; qrcode: RenderableQrcode }
-    | { kind: 'pdf417'; pdf417: RenderablePdf417 };
+    | { kind: 'pdf417'; pdf417: RenderablePdf417 }
+    | { kind: 'image'; image: RenderableImage };
 
   let textLines: TextLine[] = $derived(
     commandsOutput === null
       ? []
-      : _commandsToTextLines(commandsOutput, $printerSettings.feedBeforeCut),
+      : _commandsToTextLines(
+          commandsOutput,
+          $printerSettings.feedBeforeCut,
+          $printerSettings.language,
+        ),
   );
 
-  function _commandsToTextLines(output: EncoderCommandsOutput, feedBeforeCut: number): TextLine[] {
+  function _commandsToTextLines(
+    output: EncoderCommandsOutput,
+    feedBeforeCut: number,
+    language: string,
+  ): TextLine[] {
     const lines: TextLine[] = [];
 
     // All printer state is initialised ONCE and carries over across line boundaries,
@@ -245,10 +293,12 @@
       let barcode: RenderableBarcode | null = null;
       let qrcode: RenderableQrcode | null = null;
       let pdf417: RenderablePdf417 | null = null;
+      let image: RenderableImage | null = null;
 
       let barcodeState: Partial<RenderableBarcode> = {};
       let qrcodeState: Partial<Omit<RenderableQrcode, 'align'>> = {};
       let pdf417State: Partial<Omit<RenderablePdf417, 'align'>> = {};
+      const imageChunks: { width: number; height: number; mode: string; payload: number[] }[] = [];
 
       for (const cmd of lineObj.commands) {
         if (cmd.type === 'text' && typeof cmd.value === 'string') {
@@ -356,6 +406,32 @@
             };
             pdf417State = {};
           }
+        } else if (cmd.type === 'image') {
+          const maybeWidth = (cmd as { width?: unknown }).width;
+          const maybeHeight = (cmd as { height?: unknown }).height;
+          const maybeMode = cmd.value;
+          const maybePayload = cmd.payload;
+
+          if (
+            typeof maybeWidth === 'number' &&
+            typeof maybeHeight === 'number' &&
+            Array.isArray(maybePayload)
+          ) {
+            imageChunks.push({
+              width: maybeWidth,
+              height: Math.max(1, maybeHeight),
+              mode: typeof maybeMode === 'string' ? maybeMode : 'image',
+              payload: maybePayload,
+            });
+
+            image = {
+              width: imageChunks[0]?.width ?? maybeWidth,
+              chunks: [...imageChunks],
+              align,
+              language,
+              previewScale: $imagePreviewScale,
+            };
+          }
         }
         // initialize / codepage / character-mode — no visible output
       }
@@ -374,6 +450,8 @@
         lines.push({ kind: 'qrcode', qrcode });
       } else if (pdf417 !== null) {
         lines.push({ kind: 'pdf417', pdf417 });
+      } else if (image !== null) {
+        lines.push({ kind: 'image', image });
       } else if (chars.length === 0 && isConfiguredFeedBeforeCutAt(lineIndex)) {
         lines.push({ kind: 'feed' });
       } else {
@@ -458,18 +536,7 @@
     ascii: string;
   }
 
-  let hexDump: HexDumpRow[] = $derived(
-    (() => {
-      if (activeTab !== 'output') return [];
-      if (effectiveContent === null || modeValidationError !== null) return [];
-      try {
-        const bytes = encodeToBytes(effectiveContent, $printerSettings);
-        return _buildHexDump(bytes);
-      } catch {
-        return [];
-      }
-    })(),
-  );
+  let hexDump = $state<HexDumpRow[]>([]);
 
   function _buildHexDump(bytes: Uint8Array): HexDumpRow[] {
     const COLS = 16;
@@ -630,6 +697,75 @@
       },
     };
   }
+
+  function drawImagePreview(node: HTMLCanvasElement, image: RenderableImage): void {
+    const width = Math.max(8, image.width);
+    const height = Math.max(
+      8,
+      image.chunks.reduce((sum, chunk) => sum + Math.max(1, chunk.height), 0),
+    );
+    node.width = width;
+    node.height = height;
+
+    const ctx = node.getContext('2d');
+    if (ctx === null) {
+      return;
+    }
+
+    const styles = getComputedStyle(node);
+    const paperColor = styles.getPropertyValue('--rd-color-bg-primary').trim() || '#fff';
+    const inkColor = styles.getPropertyValue('--rd-color-text-primary').trim() || '#111';
+
+    ctx.fillStyle = paperColor;
+    ctx.fillRect(0, 0, width, height);
+
+    let yOffset = 0;
+    for (const chunk of image.chunks) {
+      const chunkWidth = Math.max(8, chunk.width);
+      const chunkHeight = Math.max(1, chunk.height);
+      // ESC/POS image rows are zero-padded to full bytes, so use ceil(width/8).
+      const bytesPerRow = Math.ceil(chunkWidth / 8);
+      // Header byte offsets by mode/language:
+      //   raster  (GS v0) : 4-byte fixed header + 4-byte size fields = 8 bytes
+      //   column  esc-pos : 3-byte command + 1-byte x/y density + 1-byte columns = 5 bytes
+      //   column  star    : 3-byte command + 1-byte columns = 4 bytes
+      const skip = chunk.mode === 'raster' ? 8 : image.language === 'esc-pos' ? 5 : 4;
+
+      for (let y = 0; y < chunkHeight; y += 1) {
+        for (let x = 0; x < chunkWidth; x += 1) {
+          let bit = 0;
+
+          if (chunk.mode === 'raster') {
+            const byteIndex = y * bytesPerRow + (x >> 3) + skip;
+            const byte = chunk.payload[byteIndex] ?? 0;
+            bit = (byte >> (7 - (x % 8))) & 1;
+          } else {
+            const byteIndex = x * 3 + Math.floor(y / 8) + skip;
+            const byte = chunk.payload[byteIndex] ?? 0;
+            bit = (byte >> (7 - (y % 8))) & 1;
+          }
+
+          if (bit === 1) {
+            ctx.fillStyle = inkColor;
+            ctx.fillRect(x, y + yOffset, 1, 1);
+          }
+        }
+      }
+
+      yOffset += chunkHeight;
+    }
+
+    setCanvasDisplayScale(node, image.previewScale);
+  }
+
+  function imageAction(node: HTMLCanvasElement, image: RenderableImage) {
+    drawImagePreview(node, image);
+    return {
+      update(next: RenderableImage) {
+        drawImagePreview(node, next);
+      },
+    };
+  }
 </script>
 
 <!--
@@ -717,6 +853,16 @@
                 >
                   <div class="symbol-wrap pdf417-wrap" aria-label="PDF417">
                     <canvas use:pdf417Action={line.pdf417} class="pdf417-canvas"></canvas>
+                  </div>
+                </div>
+              {:else if line.kind === 'image'}
+                <div
+                  class="receipt-line receipt-symbol-line"
+                  class:align-center={line.image.align === 'center'}
+                  class:align-right={line.image.align === 'right'}
+                >
+                  <div class="symbol-wrap image-wrap" aria-label="Image preview">
+                    <canvas use:imageAction={line.image} class="image-canvas"></canvas>
                   </div>
                 </div>
               {:else}
@@ -1069,6 +1215,14 @@
 
   .pdf417-canvas {
     display: block;
+  }
+
+  .image-canvas {
+    display: block;
+  }
+
+  .image-wrap {
+    transform-origin: top left;
   }
 
   .receipt-line.align-center .symbol-wrap {

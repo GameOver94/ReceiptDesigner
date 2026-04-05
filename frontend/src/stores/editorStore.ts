@@ -23,6 +23,7 @@ import type { PrinterSettings } from '$types/index';
 
 const _content = writable<string>('');
 const _printerSettings = writable<PrinterSettings>(DEFAULT_PRINTER_SETTINGS);
+const _imagePreviewScale = writable<number>(0.67);
 
 // ---------------------------------------------------------------------------
 // Read-only public views
@@ -33,6 +34,9 @@ export const editorContent = { subscribe: _content.subscribe };
 
 /** The current printer settings controlling SVG preview and ESC/POS generation. */
 export const printerSettings = { subscribe: _printerSettings.subscribe };
+
+/** Preview-only image scaling factor (1 = default). */
+export const imagePreviewScale = { subscribe: _imagePreviewScale.subscribe };
 
 // ---------------------------------------------------------------------------
 // Actions
@@ -61,6 +65,12 @@ export function updatePrinterSettings(partial: Partial<PrinterSettings>): void {
   _printerSettings.update((current) => ({ ...current, ...partial }));
 }
 
+/** Update preview-only image scaling factor (0.5 - 1.5). Non-finite and out-of-range values are ignored. */
+export function setImagePreviewScale(scale: number): void {
+  if (!Number.isFinite(scale)) return;
+  _imagePreviewScale.set(Math.min(1.5, Math.max(0.5, scale)));
+}
+
 /**
  * Reset editor to a blank state. Called when creating a new document or
  * clearing the selection.
@@ -68,4 +78,5 @@ export function updatePrinterSettings(partial: Partial<PrinterSettings>): void {
 export function resetEditor(): void {
   _content.set('');
   _printerSettings.set(DEFAULT_PRINTER_SETTINGS);
+  _imagePreviewScale.set(0.67);
 }
