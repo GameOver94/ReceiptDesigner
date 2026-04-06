@@ -19,15 +19,17 @@
     <!--
       Runtime configuration object injected before the app boots.
       In demo mode this is baked into the static HTML at build time.
-      In production mode the FastAPI server replaces this inline script with
-      one that sets mode: 'production' before serving the file.
+      In production mode the FastAPI server replaces the APP_CONFIG comment below
+      with a <script> that sets mode: 'production' before serving the file.
 
       Using window.__APP_CONFIG__ (rather than import.meta.env.VITE_*) lets the
       server override the mode at runtime without rebuilding the frontend bundle.
       See docs/design.md §3.1 for the full deployment mode explanation.
     -->
+    <!--APP_CONFIG-->
     <script>
-      window.__APP_CONFIG__ = { mode: 'demo' };
+      // Demo mode default — overridden by the server in production mode.
+      if (!window.__APP_CONFIG__) window.__APP_CONFIG__ = { mode: 'demo' };
     </script>
 
     <!-- The Svelte app mounts here -->

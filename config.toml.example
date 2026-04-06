@@ -1,0 +1,55 @@
+# ReceiptDesigner server configuration
+#
+# Copy this file to config.toml and edit the values.
+# All values can also be overridden with environment variables (see server/app/config.py).
+#
+# IMPORTANT: Set api_token to a long random string.
+# Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+[server]
+# api_token is the single credential required to access the app.
+# REQUIRED — the server will refuse all login attempts if this is empty.
+api_token = ""
+
+# Path to the SQLite database file (absolute or relative to repo root).
+db_path = "server/data/receipt_designer.db"
+
+# Bind address. Default: 127.0.0.1 (localhost only).
+# Change to 0.0.0.0 to listen on all interfaces (e.g. Docker, LAN access).
+host = "127.0.0.1"
+
+# Bind port.
+port = 8000
+
+# Session cookie lifetime in seconds. Default: 7776000 (90 days).
+cookie_max_age = 7776000
+
+# Path to the built frontend dist/ directory.
+# Default: frontend/dist relative to the repo root.
+frontend_dist = "frontend/dist"
+
+# ---------------------------------------------------------------------------
+# Printer definitions (Milestone 4)
+# ---------------------------------------------------------------------------
+# Uncomment and configure printers here for production printing.
+#
+# [[printers]]
+# id   = "main_counter"
+# name = "Front Desk Epson TM-T20"
+# connection = "tcp"
+# host = "192.168.1.100"
+# port = 9100
+#
+#   [printers.settings]
+#   cpl     = 48
+#   command = "epson"
+#
+# [[printers]]
+# id     = "kitchen"
+# name   = "Kitchen Star TSP100"
+# connection = "serial"
+# device = "/dev/ttyUSB0"
+#
+#   [printers.settings]
+#   cpl     = 42
+#   command = "star"

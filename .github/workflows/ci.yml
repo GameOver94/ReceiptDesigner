@@ -45,3 +45,36 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  backend:
+    name: Backend — ruff, mypy, pytest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (including dev extras)
+        run: uv sync --extra dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check server/
+
+      - name: Format check (ruff)
+        run: uv run ruff format --check server/
+
+      - name: Type-check (mypy)
+        run: uv run mypy server/
+
+      - name: Tests (pytest)
+        run: uv run pytest server/tests/ -v

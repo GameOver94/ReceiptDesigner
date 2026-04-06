@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { ApiAdapter } from '../adapters/apiAdapter';
 import { LocalStorageAdapter } from '../adapters/localStorageAdapter';
 import type { StorageAdapter } from '../adapters/types';
 
@@ -40,13 +41,7 @@ export function initAdapter(): void {
   if (mode === 'demo') {
     _adapter.set(new LocalStorageAdapter());
   } else {
-    // ApiAdapter will be implemented in Milestone 3.
-    // For now, fall back to LocalStorageAdapter so production mode doesn't crash.
-    console.warn(
-      '[adapterStore] Production mode detected but ApiAdapter is not yet implemented. ' +
-        'Falling back to LocalStorageAdapter until Milestone 3.',
-    );
-    _adapter.set(new LocalStorageAdapter());
+    _adapter.set(new ApiAdapter());
   }
 }
 

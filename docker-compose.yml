@@ -1,0 +1,51 @@
+# ReceiptDesigner — docker-compose.yml
+#
+# Production self-hosting configuration.
+# Compatible with: Linux x86_64 (WSL), Linux arm64 (Raspberry Pi 4).
+#
+# Quick start:
+#   1. cp config.toml.example config.toml
+#   2. Edit config.toml — set api_token to a strong random string.
+#   3. docker compose up -d
+#   4. Open http://localhost:8000 in your browser.
+#      Enter your api_token to log in.
+#
+# The SQLite database is stored in the "receipt-data" named volume.
+# Config is mounted directly from ./config.toml on the host.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: receipt-designer:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Host config.toml — edit this file to configure the server.
+      - ./config.toml:/app/config.toml:ro
+      # Named volume for persistent SQLite storage.
+      - receipt-data:/app/server/data
+      # Uncomment the line below to expose a USB/serial printer to the container.
+      # Configure the device path to match your host (e.g. /dev/ttyUSB0, /dev/ttyACM0).
+      # devices:
+      #   - "/dev/ttyUSB0:/dev/ttyUSB0"
+    environment:
+      # Override config.toml values here if preferred.
+      # RD_API_TOKEN: "your-token-here"  # alternative to config.toml
+      RD_HOST: "0.0.0.0"
+      RD_PORT: "8000"
+      RD_DB_PATH: "/app/server/data/receipt_designer.db"
+      RD_FRONTEND_DIST: "/app/frontend/dist"
+      RD_CONFIG_PATH: "/app/config.toml"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  receipt-data:
+    driver: local
