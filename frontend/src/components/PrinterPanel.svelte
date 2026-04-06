@@ -5,19 +5,26 @@
     setImagePreviewScale,
     updatePrinterSettings,
   } from '$store/editorStore';
-  import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
   import { printerModels } from '$lib/encoder';
+  import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
+  import { ALLOWED_PRINTER_COLUMNS, type PrinterSettings } from '$types/index';
   import type { SerialStatus } from '$lib/printing';
-  import { ALLOWED_PRINTER_COLUMNS } from '$types/index';
-  import type { PrinterSettings } from '$types/index';
 
-  const COLUMN_PRESETS: { value: number; label: string }[] = [
-    { value: 32, label: '58 mm (32 cols)' },
-    { value: 35, label: '58 mm (35 cols)' },
-    { value: 42, label: '80 mm (42 cols)' },
-    { value: 44, label: '80 mm (44 cols)' },
-    { value: 48, label: '80 mm (48 cols)' },
-  ];
+  type AllowedPrinterColumn = (typeof ALLOWED_PRINTER_COLUMNS)[number];
+
+  const COLUMN_PRESET_LABELS: Record<AllowedPrinterColumn, string> = {
+    32: '58 mm (32 cols)',
+    35: '58 mm (35 cols)',
+    42: '80 mm (42 cols)',
+    44: '80 mm (44 cols)',
+    48: '80 mm (48 cols)',
+  };
+
+  const COLUMN_PRESETS: { value: AllowedPrinterColumn; label: string }[] =
+    ALLOWED_PRINTER_COLUMNS.map((value) => ({
+      value,
+      label: COLUMN_PRESET_LABELS[value],
+    }));
 
   // Printer command languages supported by @point-of-sale/receipt-printer-encoder
   const LANGUAGES: { value: PrinterSettings['language']; label: string }[] = [
@@ -41,10 +48,14 @@
     'zjiang',
   ] as const;
 
+  function isAllowedPrinterColumn(value: number): value is AllowedPrinterColumn {
+    return (ALLOWED_PRINTER_COLUMNS as readonly number[]).includes(value);
+  }
+
   function handleColumnsChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const value = parseInt(select.value, 10);
-    if (!Number.isNaN(value) && ALLOWED_PRINTER_COLUMNS.includes(value)) {
+    if (!Number.isNaN(value) && isAllowedPrinterColumn(value)) {
       updatePrinterSettings({ columns: value });
     }
   }
@@ -173,6 +184,11 @@
         onchange={handleColumnsChange}
         aria-describedby="columns-hint"
       >
+        {#if !isAllowedPrinterColumn($printerSettings.columns)}
+          <option value={$printerSettings.columns} disabled>
+            Custom ({$printerSettings.columns} cols)
+          </option>
+        {/if}
         {#each COLUMN_PRESETS as preset}
           <option value={preset.value}>{preset.label}</option>
         {/each}
