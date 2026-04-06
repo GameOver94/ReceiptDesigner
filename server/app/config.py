@@ -20,9 +20,23 @@ from typing import Any
 # Config file location
 # ---------------------------------------------------------------------------
 
-# Default to a config.toml next to the server/ package root.
-_DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.toml"
-CONFIG_PATH = Path(os.environ.get("RD_CONFIG_PATH", str(_DEFAULT_CONFIG_PATH)))
+# Default search order when RD_CONFIG_PATH is not set:
+# 1) repository root config.toml (preferred)
+# 2) server/config.toml (legacy fallback)
+_ROOT_CONFIG_PATH = Path(__file__).parent.parent.parent / "config.toml"
+_LEGACY_CONFIG_PATH = Path(__file__).parent.parent / "config.toml"
+
+
+def _resolve_config_path() -> Path:
+    env_value = os.environ.get("RD_CONFIG_PATH")
+    if env_value is not None and env_value != "":
+        return Path(env_value)
+    if _ROOT_CONFIG_PATH.exists():
+        return _ROOT_CONFIG_PATH
+    return _LEGACY_CONFIG_PATH
+
+
+CONFIG_PATH = _resolve_config_path()
 
 
 def _load_toml() -> dict[str, Any]:
