@@ -11,7 +11,7 @@ Your scope is **`.github/`**, **`Dockerfile`**, **`docker-compose.yml`**, and ro
 
 ## Responsibilities by Milestone
 
-### Milestone 1 (current)
+### Milestone 1
 - GitHub Actions CI workflow: frontend lint + typecheck + Vite build on every push to `main` and on every pull request.
 - GitHub Pages deployment workflow: triggered only on version tags `v*`, gated on CI passing.
 
@@ -32,7 +32,7 @@ Your scope is **`.github/`**, **`Dockerfile`**, **`docker-compose.yml`**, and ro
 5. **Cache pnpm store and pip/uv cache between CI runs** to keep build times down.
 6. **No force-push to `main`** — CI should enforce branch protection if possible.
 
-## GitHub Actions: Frontend CI (Milestone 1)
+## GitHub Actions: Frontend CI (Milestone 1 baseline)
 
 ```yaml
 # .github/workflows/ci.yml
@@ -64,7 +64,7 @@ jobs:
       - run: pnpm build
 ```
 
-## GitHub Actions: Pages Deploy (Milestone 1)
+## GitHub Actions: Pages Deploy (Milestone 1 baseline)
 
 ```yaml
 # .github/workflows/deploy-pages.yml

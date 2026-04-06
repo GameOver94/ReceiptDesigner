@@ -646,7 +646,7 @@ Response:
 { "status": "success", "bytes_sent": 1234 }
 ```
 
-The server does **not** resolve placeholders, parse ReceiptLine markdown, or understand receipt
+The server does **not** resolve placeholders, parse encoder code, or understand receipt
 content. It is a transparent binary forwarding proxy.
 
 #### Batch print request
@@ -1147,7 +1147,7 @@ ReceiptDesigner/
 - One concern per `.svelte` file. If a component exceeds ~150 lines of template, split it.
 - All encoder calls go through `lib/encoder.ts`; never call receipt-printer-encoder directly in a component.
 - All print operations go through `lib/printing.ts`; never call `receipt-printer-encoder` or `@point-of-sale/webserial-receipt-printer` directly from a component or store.
-- Preview updates must be debounced (≥ 300 ms). Never call `toSVG()` on every keystroke.
+- Preview updates must be debounced (≥ 300 ms). Never run the encoder preview pipeline on every keystroke.
 - The storage adapter is accessed only through the `adapterStore`; never imported directly.
 - The frontend bundle must work as a completely static file with no server. Test this before marking any task done.
 - Follow `docs/coding-style.md` strictly.
@@ -1168,7 +1168,7 @@ ReceiptDesigner/
 - All request bodies are validated by Pydantic models before any business logic runs.
 - Database sessions are injected via FastAPI `Depends` — never create a session ad-hoc.
 - Printer connections are managed by the service registry, not opened per-request.
-- The server **never** parses ReceiptLine markdown or generates ESC/POS bytes. It receives bytes from the browser and forwards them verbatim.
+- The server **never** parses encoder code or generates ESC/POS bytes. It receives bytes from the browser and forwards them verbatim.
 - Each forwarding operation must have a hard timeout (configurable, default 15 s).
 - Never log raw ESC/POS bytes. Log printer ID, job byte count, and status only.
 - Use sync SQLAlchemy and sync route handlers for all DB operations.

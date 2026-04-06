@@ -151,7 +151,7 @@ Name them `handle<Event>`. Avoid inline arrow functions for anything beyond one 
 - Prefer `$derived` over `$effect` for computed values.
 - `$effect` is for side effects (DOM manipulation, calling external APIs). It must not return
   reactive state — use `$derived` for that.
-- Never call Receipt.js directly from a component. Use `lib/receiptjs.ts`.
+- Never call `receipt-printer-encoder` directly from a component. Use `lib/encoder.ts`.
 
 ---
 

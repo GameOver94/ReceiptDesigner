@@ -1,12 +1,14 @@
 # ReceiptDesigner — Copilot Instructions
 
 ReceiptDesigner is a **Svelte 5 + FastAPI** web app for authoring, previewing, and printing
-receipts using [ReceiptLine](https://github.com/receiptline/receiptline) markdown.
+receipts using JavaScript encoder code powered by
+[`@point-of-sale/receipt-printer-encoder`](https://github.com/NielsLeenheer/ReceiptPrinterEncoder).
 
 - **Demo mode** — static GitHub Pages site; `localStorage` storage; Web Serial / SVG+PNG export.
 - **Production mode** — self-hosted FastAPI + SQLite; server forwards raw ESC/POS bytes over TCP or
-  serial. The server is a **transparent binary proxy** — it never parses ReceiptLine or generates
-  ESC/POS bytes. All receipt rendering and ESC/POS generation happens in the browser via Receipt.js.
+  serial. The server is a **transparent binary proxy** — it never parses encoder code or generates
+  ESC/POS bytes. All receipt rendering and ESC/POS generation happens in the browser via
+  `receipt-printer-encoder` (`frontend/src/lib/encoder.ts`).
 
 Architecture reference: `docs/design.md`. Style reference: `docs/coding-style.md`.
 
@@ -19,7 +21,7 @@ frontend/src/
   components/    # Svelte components (PascalCase.svelte)
   stores/        # Svelte stores (*Store.ts)
   adapters/      # types.ts, localStorageAdapter.ts, apiAdapter.ts
-  lib/           # receiptjs.ts, variables.ts, printing.ts, csv.ts, codemirror/
+  lib/           # encoder.ts, variables.ts, printing.ts, csv.ts, codemirror/
   styles/        # global.css, tokens.css
   types/         # index.ts
 server/app/
@@ -74,10 +76,10 @@ uv run uvicorn server.app.main:app --reload  # dev server
 3. **No enums** — use `const` objects with `as const`; derive the type with
    `typeof CONST[keyof typeof CONST]`.
 4. **Sync SQLAlchemy only** — route handlers are `def`, not `async def`. No `await` in server code.
-5. **Server never parses ReceiptLine** — ESC/POS generation is 100% browser-side via Receipt.js.
-6. **All Receipt.js calls via `lib/receiptjs.ts`** — never call Receipt.js directly in a component.
+5. **Server never parses encoder code** — ESC/POS generation is 100% browser-side via `lib/encoder.ts`.
+6. **All encoder calls via `lib/encoder.ts`** — never call `receipt-printer-encoder` directly in a component.
 7. **All print operations via `lib/printing.ts`** — never directly in a component or store.
-8. **Preview debounce >= 300 ms** — never call `toSVG()` on every keystroke.
+8. **Preview debounce >= 300 ms** — never run the encoder preview pipeline on every keystroke.
 9. **Storage adapter accessed only through `adapterStore`** — never import an adapter directly.
 10. **CSS tokens only** — `--rd-*` custom properties from `styles/tokens.css`. No hardcoded values,
     no `!important`.

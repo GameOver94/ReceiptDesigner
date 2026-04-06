@@ -24,7 +24,7 @@ Your scope is **`server/`** only. Do not touch `frontend/`, `.github/`, `Dockerf
 ## Critical Rules
 
 1. **Sync only** — all route handlers are `def`, not `async def`. No `asyncio`, no `await` in route handlers or service functions.
-2. **Never parse ReceiptLine markdown or generate ESC/POS bytes on the server.** The server receives a binary blob from the browser and forwards it verbatim to the printer. It is a transparent proxy.
+2. **Never parse encoder code or generate ESC/POS bytes on the server.** The server receives a binary blob from the browser and forwards it verbatim to the printer. It is a transparent proxy.
 3. **All request bodies are Pydantic models** — never accept `dict` directly.
 4. **Database sessions via `Depends(get_session)`** — never create a session ad-hoc in a route handler.
 5. **Printer connections managed by the service registry** — never open a printer connection per-request.

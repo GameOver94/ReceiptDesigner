@@ -71,9 +71,9 @@ export async function loadItems(): Promise<void> { … }
 
 ## Key Architecture Rules
 
-- All Receipt.js calls go through `lib/receiptjs.ts` — never call Receipt.js directly.
+- All encoder calls go through `lib/encoder.ts` — never call `receipt-printer-encoder` directly.
 - All print operations go through `lib/printing.ts` — never in a component or store.
-- Preview debounce must be >= 300 ms — never call `toSVG()` on every keystroke.
+- Preview debounce must be >= 300 ms — never run the encoder preview pipeline on every keystroke.
 - Storage adapter accessed only through `adapterStore` — never import an adapter directly.
 
 ## Error Handling

@@ -5,15 +5,16 @@ This file is read by OpenCode at the start of every session.
 ## What This Project Is
 
 ReceiptDesigner is a Svelte 5 + FastAPI web app for authoring, previewing, and printing
-receipts using [ReceiptLine](https://github.com/receiptline/receiptline) markdown.
+receipts using JavaScript encoder code powered by
+[`@point-of-sale/receipt-printer-encoder`](https://github.com/NielsLeenheer/ReceiptPrinterEncoder).
 
 - **Demo mode** — static GitHub Pages site; `localStorage` storage; Web Serial / export for printing.
 - **Production mode** — self-hosted FastAPI server; SQLite; server-forwarded ESC/POS over TCP or serial.
 
-The frontend is a Svelte 5 + Vite SPA. Receipt.js runs in the browser to render SVG previews and
-generate ESC/POS bytes. The storage adapter (`LocalStorageAdapter` vs `ApiAdapter`) switches at
-runtime via `window.__APP_CONFIG__.mode`. The server is a **transparent binary proxy** — it never
-parses ReceiptLine or generates ESC/POS bytes.
+The frontend is a Svelte 5 + Vite SPA. `receipt-printer-encoder` runs in the browser (via
+`lib/encoder.ts`) to render preview data and generate ESC/POS bytes. The storage adapter
+(`LocalStorageAdapter` vs `ApiAdapter`) switches at runtime via `window.__APP_CONFIG__.mode`.
+The server is a **transparent binary proxy** — it never parses encoder code or generates ESC/POS bytes.
 
 ## Canonical References (read before writing any code)
 
@@ -32,7 +33,7 @@ parses ReceiptLine or generates ESC/POS bytes.
 ## MCP Tools
 
 - **`context7`** — up-to-date library docs (Svelte 5, CodeMirror 6, FastAPI, SQLAlchemy 2, Pydantic v2)
-- **`gh_grep`** — real-world code examples (Receipt.js, CodeMirror extensions, etc.)
+- **`gh_grep`** — real-world code examples (ReceiptPrinterEncoder, CodeMirror extensions, etc.)
 
 ---
 
@@ -78,7 +79,7 @@ uv run uvicorn server.app.main:app --reload  # dev server
 | Frontend framework | Svelte 5 + Vite |
 | Language (frontend) | TypeScript strict (`noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) |
 | Editor | CodeMirror 6 |
-| Receipt rendering + ESC/POS | Receipt.js (browser only) |
+| Receipt rendering + ESC/POS | `@point-of-sale/receipt-printer-encoder` (browser only) |
 | Frontend package manager | pnpm |
 | Backend | Python 3.12+ / FastAPI |
 | Database | SQLite via SQLAlchemy 2 (sync) |
@@ -97,10 +98,10 @@ uv run uvicorn server.app.main:app --reload  # dev server
 2. **Svelte 5 runes only** — `$props()`, `$state()`, `$derived()`, `$effect()`. No legacy `export let`, `$:`, or `createEventDispatcher`.
 3. **No enums** — use `const` objects with `as const`; derive the type with `typeof CONST[keyof typeof CONST]`.
 4. **Sync SQLAlchemy only** — route handlers are `def`, not `async def`. No `await` anywhere in server code.
-5. **Server never parses ReceiptLine** — ESC/POS generation is 100% browser-side via Receipt.js.
-6. **All Receipt.js calls via `lib/receiptjs.ts`** — never call Receipt.js directly in a component.
+5. **Server never parses encoder code** — ESC/POS generation is 100% browser-side via `lib/encoder.ts`.
+6. **All encoder calls via `lib/encoder.ts`** — never call `receipt-printer-encoder` directly in a component.
 7. **All print operations via `lib/printing.ts`** — never directly in a component or store.
-8. **Preview debounce ≥ 300 ms** — never call `toSVG()` on every keystroke.
+8. **Preview debounce ≥ 300 ms** — never run the encoder preview pipeline on every keystroke.
 9. **Storage adapter accessed only through `adapterStore`** — never import an adapter directly.
 10. **CSS tokens only** — `--rd-*` custom properties from `styles/tokens.css`. No hardcoded values, no `!important`.
 11. **Conventional Commits** — `feat(scope): description`, `fix(scope): ...`, `chore(scope): ...`
@@ -251,7 +252,6 @@ One logical change per PR; all CI checks must pass before merge.
 
 ## Current Milestone
 
-**Milestone 1 — Core Editor (Demo Mode)**: Svelte + Vite scaffold, CodeMirror 6 with ReceiptLine
-syntax highlighting, Receipt.js SVG preview (300 ms debounce), printer settings panel, paper width
-presets (58 mm / 80 mm / custom), SVG + PNG export, `LocalStorageAdapter`, GitHub Actions CI,
-GitHub Pages deploy on `v*` tags.
+**Milestone 3 — Server + Database**: FastAPI scaffold, SQLite via SQLAlchemy + Alembic,
+`/api/v1/documents` CRUD, frontend `ApiAdapter` + runtime mode switch (`window.__APP_CONFIG__`),
+cookie-based auth bootstrap, backend CI checks (`ruff` / `mypy` / `pytest`), and production Docker setup.

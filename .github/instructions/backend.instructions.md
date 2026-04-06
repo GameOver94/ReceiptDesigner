@@ -9,8 +9,8 @@ These instructions apply to all files under `server/`.
 ## Critical Rules
 
 - Route handlers are **`def`**, not `async def`. No `await` anywhere in server code.
-- **The server never parses ReceiptLine** and never generates ESC/POS bytes. It is a transparent
-  binary proxy. ESC/POS generation is 100% browser-side via Receipt.js.
+- **The server never parses encoder code** and never generates ESC/POS bytes. It is a transparent
+  binary proxy. ESC/POS generation is 100% browser-side via `receipt-printer-encoder` (`lib/encoder.ts`).
 - All functions and methods must be fully type-annotated. `mypy --strict` must pass.
 - `ruff` handles formatting and linting. Run `uv run ruff check server/` and
   `uv run ruff format server/` before committing.

@@ -13,7 +13,7 @@ Your scope is **`frontend/`** only. Do not touch `server/`, `.github/`, `Dockerf
 
 - **Svelte 5 + Vite + TypeScript** (strict mode — `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`)
 - **CodeMirror 6** for the editor
-- **Receipt.js** (`receipt.js`, `receipt-printer.js`, `receipt-serial.js`) for SVG preview and ESC/POS generation
+- **`@point-of-sale/receipt-printer-encoder`** for preview rendering and ESC/POS generation
 - **pnpm** as the package manager
 - **ESLint** (flat config) + **Prettier** + `prettier-plugin-svelte` for linting/formatting
 - **Vitest** for unit tests, **Playwright** for e2e tests
@@ -24,9 +24,9 @@ Your scope is **`frontend/`** only. Do not touch `server/`, `.github/`, `Dockerf
 2. **No `any`** — use `unknown` and narrow with type guards. `@ts-ignore` requires a comment.
 3. **No enums** — use `const` objects with `as const`.
 4. **`interface` for data shapes, `type` for unions/intersections.**
-5. **All Receipt.js calls go through `lib/receiptjs.ts`** — never call Receipt.js directly in a component.
-6. **All print operations go through `lib/printing.ts`** — never call `receipt-printer.js` or `receipt-serial.js` from a component or store.
-7. **Preview updates must be debounced ≥ 300 ms** — never call `toSVG()` on every keystroke.
+5. **All encoder calls go through `lib/encoder.ts`** — never call `receipt-printer-encoder` directly in a component.
+6. **All print operations go through `lib/printing.ts`** — never call `receipt-printer-encoder` or `@point-of-sale/webserial-receipt-printer` from a component or store.
+7. **Preview updates must be debounced ≥ 300 ms** — never run the encoder preview pipeline on every keystroke.
 8. **Storage adapter accessed only through `adapterStore`** — never import an adapter directly into a component or store.
 9. **Component template > ~150 lines → split it.** `<script>` > ~80 lines of logic → extract to `lib/`.
 10. **The frontend bundle must work as a completely static file** with no server. Verify before marking any task done.
@@ -100,4 +100,4 @@ Before writing any code, read:
 - `docs/coding-style.md` — all style rules
 
 When you need up-to-date library docs, use the `context7` MCP tool.
-When you need real-world usage examples for Receipt.js or CodeMirror, use the `gh_grep` MCP tool.
+When you need real-world usage examples for ReceiptPrinterEncoder or CodeMirror, use the `gh_grep` MCP tool.

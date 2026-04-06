@@ -51,9 +51,9 @@ a `.svelte` file), but note the skip reason.
 - [ ] `import type` used for type-only imports.
 - [ ] Import order: external → internal (`$lib/`, `$store/`, `$types/`) → type-only (blank line between groups).
 - [ ] Path aliases (`$lib/`, `$store/`, `$types/`) used instead of deep relative paths (>2 `../`).
-- [ ] **All Receipt.js calls go through `lib/receiptjs.ts`** only.
+- [ ] **All encoder calls go through `lib/encoder.ts`** only.
 - [ ] **All print operations go through `lib/printing.ts`** only.
-- [ ] **Preview debounce ≥ 300 ms** — `toSVG()` never called on every keystroke.
+- [ ] **Preview debounce ≥ 300 ms** — encoder preview pipeline never run on every keystroke.
 - [ ] **Storage adapter accessed only through `adapterStore`** — never imported directly.
 - [ ] Svelte component file order: imports → `$props()` → `$state()` → `$derived()` → `$effect()` → handlers → template → `<style>`.
 - [ ] Component template ≤ ~150 lines; `<script>` logic ≤ ~80 lines (split if exceeded).
@@ -66,7 +66,7 @@ a `.svelte` file), but note the skip reason.
 
 - [ ] All functions and methods fully type-annotated; `mypy --strict` would pass.
 - [ ] Route handlers are `def`, not `async def`; no `await` anywhere in server code.
-- [ ] **Server never parses ReceiptLine or generates ESC/POS bytes.**
+- [ ] **Server never parses encoder code or generates ESC/POS bytes.**
 - [ ] All request bodies are Pydantic models — no bare `dict`.
 - [ ] DB sessions via `Depends(get_session)` — no ad-hoc session creation in route handlers.
 - [ ] Separate Pydantic models for input (`DocumentCreate`/`DocumentUpdate`) and output (`DocumentRead`).
