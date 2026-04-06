@@ -882,7 +882,7 @@
                       class:is-scaled={char.scaleX > 1 || char.scaleY > 1}
                       style:--sx={char.scaleX}
                       style:--sy={char.scaleY}
-                    ><span class="receipt-char-glyph">{char.ch}</span></span
+                      ><span class="receipt-char-glyph">{char.ch}</span></span
                     >
                   {/each}
                 </div>
