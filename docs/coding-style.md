@@ -365,7 +365,7 @@ python_version = "3.12"
 
 - Route files live in `server/app/routes/`. One file per resource noun (plural).
 - Each route file creates an `APIRouter` and the main `app` includes it.
-- Route handler functions are `async def`. They do I/O; they do not contain business logic.
+- Route handler functions are `def` (sync). They do I/O; they do not contain business logic.
 - Business logic lives in `server/app/services/`.
 - Request bodies are Pydantic models. Never accept `dict` directly.
 

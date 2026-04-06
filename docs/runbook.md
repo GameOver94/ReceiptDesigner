@@ -270,3 +270,17 @@ For USB/serial printer access in Docker, uncomment the `devices:` section in
 ```
 
 Printer integration (API endpoints + forwarding logic) is implemented in Milestone 4.
+
+---
+
+## 7. Milestone 3 Implementation Deviations
+
+These are intentional implementation details that differ slightly from older planning text:
+
+- **Alembic location:** `alembic.ini` is at the repository root.
+- **First-run DB bootstrap:** app startup also runs `Base.metadata.create_all()` so fresh installs
+  can start without manually running migrations first.
+- **Auth cookie format:** `rd_session` uses an HMAC-SHA256 signature over a fixed payload keyed by
+  the configured API token (not JWT).
+- **Python project config location:** `pyproject.toml` is at repository root (not `server/`).
+  All backend `uv run ...` commands in this runbook assume execution from repo root.

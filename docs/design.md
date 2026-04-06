@@ -589,6 +589,9 @@ first set up. Authentication flow:
 2. User enters the token. Frontend POSTs it to `POST /api/v1/auth/login`.
 3. Server validates the token. On success it sets a long-lived `HttpOnly` `SameSite=Strict`
    cookie (`rd_session`). The cookie is never readable by JavaScript.
+   Current implementation detail: `rd_session` is an HMAC-SHA256 signature of a fixed payload,
+   keyed with the configured API token. This is intentionally lightweight (non-JWT) for
+   single-user self-hosted deployments.
 4. All subsequent requests include the cookie automatically. The server validates it on every
    request via a FastAPI dependency.
 5. The cookie has a configurable max-age (default 90 days). On expiry the user is prompted
@@ -1054,10 +1057,11 @@ ReceiptDesigner/
 │   │   └── schemas/
 │   │       ├── document.py     # Pydantic request/response models
 │   │       └── printer.py
-│   ├── config.toml             # Printer definitions + server settings
-│   ├── requirements.txt
-│   └── pyproject.toml
+│   └── config.toml             # Printer definitions + server settings
 │
+├── alembic.ini                 # Alembic config (script_location -> server/app/db/migrations)
+├── pyproject.toml              # Python project + ruff/mypy/pytest config (root-level)
+
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml
@@ -1107,6 +1111,14 @@ ReceiptDesigner/
   - Multi-stage `Dockerfile`: Stage 1 builds the frontend with Node.js + pnpm; Stage 2 is a lean Python image that copies the built frontend dist and runs uvicorn. No Node.js in the final image.
   - `docker-compose.yml` mounts `config.toml` and the SQLite database file as named volumes so they survive container restarts.
   - For USB/serial printing (Path C), `docker-compose.yml` includes a commented `devices:` entry (e.g. `/dev/ttyUSB0`) — this must be configured by the user for their specific host.
+
+Milestone 3 implementation notes (current repository state):
+
+- `alembic.ini` is located at the repository root (standard Alembic location).
+- SQLAlchemy `Base.metadata.create_all()` also runs at app startup as a first-run bootstrap;
+  Alembic remains the canonical migration path for schema evolution.
+- Python dependency/tooling config is root-level `pyproject.toml` (instead of `server/pyproject.toml`).
+  Backend commands in docs use `uv` from the repository root.
 
 ### Milestone 4 — Printing
 
