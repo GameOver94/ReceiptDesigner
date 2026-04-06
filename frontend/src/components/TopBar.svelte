@@ -50,6 +50,7 @@
   let hasDocument = $derived($currentDocument !== null);
   let isInScratch = $derived($isScratch);
   let isDemo = $derived(window.__APP_CONFIG__?.mode === 'demo');
+  let isProduction = $derived(window.__APP_CONFIG__?.mode === 'production');
   let isDark = $derived($appSettings.theme === 'dark');
 
   function handleToggleTheme(): void {
@@ -297,6 +298,10 @@
     {#if isDemo}
       <span class="mode-badge" title="Running in demo mode — documents saved to localStorage">
         Demo
+      </span>
+    {:else if isProduction}
+      <span class="mode-badge" title="Running in production mode — data served by FastAPI">
+        Production
       </span>
     {/if}
     <button

@@ -160,9 +160,9 @@
    * Z-index scale
    * All z-index values must reference these tokens to prevent stacking conflicts.
    * ---------------------------------------------------------------------- */
-  --rd-z-topbar: 10;
+  --rd-z-topbar: 220;
   --rd-z-dropdown: 200;
-  --rd-z-banner: 20;
+  --rd-z-banner: 230;
   --rd-z-modal: 300;
 
   /* --------------------------------------------------------------------------

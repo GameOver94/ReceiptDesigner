@@ -13,23 +13,42 @@
   import { get } from 'svelte/store';
   import { AuthError } from './adapters/apiAdapter';
 
+  const isProduction = window.__APP_CONFIG__?.mode === 'production';
+  const AUTH_BOOTSTRAP_KEY = 'rd:auth:has-session';
+
+  function hasAuthBootstrap(): boolean {
+    if (!isProduction) return true;
+    try {
+      return window.localStorage.getItem(AUTH_BOOTSTRAP_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  function markAuthBootstrap(): void {
+    if (!isProduction) return;
+    try {
+      window.localStorage.setItem(AUTH_BOOTSTRAP_KEY, '1');
+    } catch {
+      // Ignore storage write failures (private mode, quota, etc.).
+    }
+  }
+
   // $state() tracks whether the initial document load has completed.
   // Used to show a loading indicator before the document list is ready.
   let isLoading = $state(true);
   let loadError = $state<string | null>(null);
   // In production mode: true when the user is not (or no longer) authenticated.
-  let needsLogin = $state(false);
-
-  const isProduction = window.__APP_CONFIG__?.mode === 'production';
+  let needsLogin = $state(isProduction && !hasAuthBootstrap());
 
   async function loadApp(): Promise<void> {
     isLoading = true;
     loadError = null;
-    needsLogin = false;
-
     try {
       await loadDocuments();
       await loadFolders();
+
+      needsLogin = false;
 
       // After loading, pick up where the user left off:
       // - If saved documents exist, select the most recent one and load it.
@@ -69,10 +88,16 @@
   // 1. The storage adapter must be initialised before we call loadDocuments.
   // 2. onMount only runs in the browser, not during SSR (though this app has no SSR).
   onMount(() => {
+    if (needsLogin) {
+      isLoading = false;
+      return;
+    }
     void loadApp();
   });
 
   function handleLoginSuccess(): void {
+    markAuthBootstrap();
+    needsLogin = false;
     void loadApp();
   }
 </script>
@@ -114,11 +139,6 @@
       <ExportButtons />
     </div>
   </div>
-{/if}
-
-<!-- Mode badge: visible in production mode to remind the user they are online -->
-{#if isProduction && !needsLogin}
-  <div class="mode-badge" aria-label="Production mode">Production</div>
 {/if}
 
 <style>
@@ -171,18 +191,4 @@
     flex-shrink: 0;
   }
 
-  /* Small production-mode badge in the bottom-right corner */
-  .mode-badge {
-    position: fixed;
-    bottom: var(--rd-space-3);
-    right: var(--rd-space-3);
-    padding: var(--rd-space-1) var(--rd-space-2);
-    font-size: var(--rd-font-xs);
-    font-weight: 600;
-    color: var(--rd-color-on-primary);
-    background-color: var(--rd-color-accent);
-    border-radius: var(--rd-radius-full);
-    pointer-events: none;
-    z-index: var(--rd-z-banner);
-  }
 </style>
