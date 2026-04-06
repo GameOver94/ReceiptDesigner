@@ -60,8 +60,13 @@
   let hoveredCommand = $state<string | null>(null);
   let hoverMenuTop = $state<number | null>(null);
   let hoverMenuLeft = $state<number | null>(null);
+  let hoverAnchorRect = $state<DOMRect | null>(null);
+  let hoverMenuEl = $state<HTMLDivElement | null>(null);
   let closeMenuTimer: ReturnType<typeof setTimeout> | null = null;
   let showImageBase64Modal = $state(false);
+
+  const HOVER_MENU_GAP = 4;
+  const HOVER_MENU_VIEWPORT_MARGIN = 8;
 
   function handleUndo(): void {
     if (view === null) return;
@@ -87,6 +92,33 @@
     handleInsert(command.snippet);
   }
 
+  function updateHoverMenuPosition(): void {
+    if (hoverAnchorRect === null || hoverMenuEl === null) {
+      return;
+    }
+
+    let nextLeft = hoverAnchorRect.left;
+    const maxLeft = window.innerWidth - HOVER_MENU_VIEWPORT_MARGIN - hoverMenuEl.offsetWidth;
+    if (nextLeft > maxLeft) {
+      nextLeft = maxLeft;
+    }
+    if (nextLeft < HOVER_MENU_VIEWPORT_MARGIN) {
+      nextLeft = HOVER_MENU_VIEWPORT_MARGIN;
+    }
+
+    let nextTop = hoverAnchorRect.bottom + HOVER_MENU_GAP;
+    const maxTop = window.innerHeight - HOVER_MENU_VIEWPORT_MARGIN - hoverMenuEl.offsetHeight;
+    if (nextTop > maxTop) {
+      nextTop = hoverAnchorRect.top - HOVER_MENU_GAP - hoverMenuEl.offsetHeight;
+    }
+    if (nextTop < HOVER_MENU_VIEWPORT_MARGIN) {
+      nextTop = HOVER_MENU_VIEWPORT_MARGIN;
+    }
+
+    hoverMenuTop = nextTop;
+    hoverMenuLeft = nextLeft;
+  }
+
   function handleHoverStart(commandId: string, target?: EventTarget | null): void {
     if (closeMenuTimer !== null) {
       clearTimeout(closeMenuTimer);
@@ -94,9 +126,11 @@
     }
 
     if (target instanceof HTMLElement) {
-      const rect = target.getBoundingClientRect();
-      hoverMenuTop = rect.bottom + 4;
-      hoverMenuLeft = rect.left;
+      hoverAnchorRect = target.getBoundingClientRect();
+    }
+
+    if (hoverAnchorRect !== null) {
+      updateHoverMenuPosition();
     }
 
     hoveredCommand = commandId;
@@ -110,10 +144,33 @@
         hoveredCommand = null;
         hoverMenuTop = null;
         hoverMenuLeft = null;
+        hoverAnchorRect = null;
+        hoverMenuEl = null;
       }
       closeMenuTimer = null;
     }, 160);
   }
+
+  $effect(() => {
+    if (hoveredCommand === null || hoverAnchorRect === null || hoverMenuEl === null) {
+      return;
+    }
+
+    const rafId = window.requestAnimationFrame(() => {
+      updateHoverMenuPosition();
+    });
+
+    const handleResize = (): void => {
+      updateHoverMenuPosition();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+    };
+  });
 
   function handleCommandItemKeydown(event: KeyboardEvent, commandId: string): void {
     if (event.key === 'Escape') {
@@ -182,6 +239,7 @@
 
               {#if hoveredCommand === command.id}
                 <div
+                  bind:this={hoverMenuEl}
                   class="hover-menu"
                   role="dialog"
                   tabindex="-1"
