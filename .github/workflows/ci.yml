@@ -10,6 +10,8 @@ jobs:
   frontend:
     name: Frontend — lint, typecheck, test, build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     defaults:
       run:
@@ -49,6 +51,8 @@ jobs:
   backend:
     name: Backend — ruff, mypy, pytest
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
