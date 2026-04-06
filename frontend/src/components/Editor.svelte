@@ -86,12 +86,15 @@
     overflow: hidden;
     border-right: 1px solid var(--rd-color-border);
     background-color: var(--rd-color-bg-primary);
+    position: relative;
+    z-index: var(--rd-z-dropdown);
   }
 
   /* editor-container fills the remaining height in the flex column */
   .editor-container {
     flex: 1;
     overflow: hidden;
+    min-width: 0;
     /* CodeMirror's own scroller handles overflow inside */
   }
 

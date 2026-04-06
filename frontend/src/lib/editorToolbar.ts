@@ -34,11 +34,11 @@ export const toolbarGroups: EditorToolbarGroup[] = [
         id: 'initialize',
         label: 'Initialize',
         icon: 'Power',
-        snippet: '.initialize()',
-        preview: '.initialize()',
+        snippet: 'encoder.initialize()',
+        preview: 'encoder.initialize()',
         variations: [
-          { label: 'Basic', snippet: '.initialize()' },
-          { label: 'Init + line', snippet: ".initialize().line('Receipt')" },
+          { label: 'Basic', snippet: 'encoder.initialize()' },
+          { label: 'Init + line', snippet: "encoder.initialize().line('Receipt')" },
         ],
         docsAnchor: '#initialize',
       },
@@ -85,7 +85,7 @@ export const toolbarGroups: EditorToolbarGroup[] = [
           {
             label: 'To image element',
             snippet:
-              "const imageElement = new Image();\nimageElement.src = imageBase64;\nencoder.image(imageElement, 256, 128, 'threshold');",
+              "const imageElement = new Image();\nimageElement.src = imageBase64;\nawait imageElement.decode();\nencoder.image(imageElement, 256, 128, 'threshold');",
           },
         ],
         docsAnchor: '#image',
@@ -105,7 +105,6 @@ export const toolbarGroups: EditorToolbarGroup[] = [
         variations: [
           { label: 'Font A', snippet: ".font('A')" },
           { label: 'Font B', snippet: ".font('B')" },
-          { label: '9x17', snippet: ".font('9x17')" },
         ],
         docsAnchor: '#font',
       },
@@ -247,15 +246,21 @@ export const toolbarGroups: EditorToolbarGroup[] = [
         id: 'box',
         label: 'Box',
         icon: 'Square',
-        snippet: ".box({ style: 'single', width: 32 }, 'Box content')",
-        preview: ".box({ style: 'single', width: 32 }, 'Box content')",
+        snippet: ".box({ style: 'single', width: 32, align: 'left' }, 'Box content')",
+        preview: ".box({ style: 'single', width: 32, align: 'left' }, 'Box content')",
         variations: [
-          { label: 'Single', snippet: ".box({ style: 'single', width: 32 }, 'Box content')" },
-          { label: 'Double', snippet: ".box({ style: 'double', width: 32 }, 'Box content')" },
+          {
+            label: 'Single',
+            snippet: ".box({ style: 'single', width: 32, align: 'left' }, 'Box content')",
+          },
+          {
+            label: 'Double',
+            snippet: ".box({ style: 'double', width: 32, align: 'left' }, 'Box content')",
+          },
           {
             label: 'Callback',
             snippet:
-              ".box({ style: 'single', width: 32 }, (boxEncoder) => boxEncoder.line('Nested line').bold().line('Total').bold())",
+              ".box(\n  { width: encoder.columns - 10, align: 'right', style: 'double' },\n  (encoder) => encoder\n    .text('The quick brown ')\n    .height(2)\n    .text('fox')\n    .height(1)\n    .text(' jumps over the lazy dog')\n)",
           },
         ],
         docsAnchor: '#box',
@@ -384,12 +389,36 @@ export function getCommandDocsUrl(docsAnchor: string): string {
   return `${COMMAND_DOCS_BASE_URL}${docsAnchor}`;
 }
 
+function indentSnippetForCurrentLine(view: EditorView, from: number, snippet: string): string {
+  if (!snippet.includes('\n')) {
+    return snippet;
+  }
+
+  const line = view.state.doc.lineAt(from);
+  const currentIndent = line.text.match(/^\s*/)?.[0] ?? '';
+  if (currentIndent === '') {
+    return snippet;
+  }
+
+  const parts = snippet.split('\n');
+  const indented = parts.map((part, index) => {
+    if (index === 0 || part === '') {
+      return part;
+    }
+
+    return `${currentIndent}${part}`;
+  });
+
+  return indented.join('\n');
+}
+
 export function insertSnippet(view: EditorView, snippet: string): void {
   const { from, to } = view.state.selection.main;
+  const snippetWithIndent = indentSnippetForCurrentLine(view, from, snippet);
 
   view.dispatch({
-    changes: { from, to, insert: snippet },
-    selection: { anchor: from + snippet.length },
+    changes: { from, to, insert: snippetWithIndent },
+    selection: { anchor: from + snippetWithIndent.length },
     scrollIntoView: true,
   });
 
@@ -398,21 +427,22 @@ export function insertSnippet(view: EditorView, snippet: string): void {
 
 export function insertSnippetWithAutoFold(view: EditorView, snippet: string): void {
   const { from, to } = view.state.selection.main;
+  const snippetWithIndent = indentSnippetForCurrentLine(view, from, snippet);
 
   view.dispatch({
-    changes: { from, to, insert: snippet },
-    selection: { anchor: from + snippet.length },
+    changes: { from, to, insert: snippetWithIndent },
+    selection: { anchor: from + snippetWithIndent.length },
     scrollIntoView: true,
   });
 
-  if (!snippet.includes('data:image/')) {
+  if (!snippetWithIndent.includes('data:image/')) {
     view.focus();
     return;
   }
 
   const effects: ReturnType<typeof foldEffect.of>[] = [];
   const insertedStart = from;
-  const insertedEnd = from + snippet.length;
+  const insertedEnd = from + snippetWithIndent.length;
   let lineStart = view.state.doc.lineAt(insertedStart).from;
 
   while (lineStart <= insertedEnd) {

@@ -124,6 +124,8 @@
     overflow: hidden;
     border-left: 1px solid var(--rd-color-border);
     background-color: var(--rd-color-bg-secondary);
+    position: relative;
+    z-index: 0;
   }
 
   /* PrinterPanel takes up the main space; export buttons sit at the bottom */

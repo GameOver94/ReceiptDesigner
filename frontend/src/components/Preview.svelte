@@ -881,7 +881,8 @@
                       class:is-invert={char.invert}
                       class:is-scaled={char.scaleX > 1 || char.scaleY > 1}
                       style:--sx={char.scaleX}
-                      style:--sy={char.scaleY}>{char.ch}</span
+                      style:--sy={char.scaleY}
+                      ><span class="receipt-char-glyph">{char.ch}</span></span
                     >
                   {/each}
                 </div>
@@ -1026,6 +1027,8 @@
     overflow: hidden;
     background-color: var(--rd-color-preview-bg);
     border-right: 1px solid var(--rd-color-outline-variant);
+    position: relative;
+    z-index: 0;
   }
 
   /* ── Tab bar ─────────────────────────────────────────────────────── */
@@ -1171,6 +1174,7 @@
   .receipt-line {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-end;
     min-height: var(--height-a);
     /* 4px gap between lines, matching playground: margin-bottom = height-a / 4 */
     margin-bottom: calc(var(--height-a) / 4);
@@ -1239,14 +1243,25 @@
     align-items: center;
     justify-content: center;
     width: var(--width-a);
+    height: var(--height-a);
     font-size: var(--size-a);
     line-height: var(--height-a);
     white-space: pre;
   }
 
+  .receipt-char-glyph {
+    display: inline-block;
+    line-height: var(--height-a);
+  }
+
+  .receipt-char.is-font-b .receipt-char-glyph {
+    line-height: var(--height-b);
+  }
+
   /* Font B overrides — narrower, smaller font, same line-height */
   .receipt-char.is-font-b {
     width: var(--width-b);
+    height: var(--height-b);
     font-size: var(--size-b);
     line-height: var(--height-b);
   }
@@ -1282,14 +1297,21 @@
    */
   .receipt-char.is-scaled {
     width: calc(var(--width-a) * var(--sx, 1));
+    height: calc(var(--height-a) * var(--sy, 1));
     line-height: calc(var(--height-a) * var(--sy, 1));
+    justify-content: flex-start;
+    align-items: flex-end;
+  }
+
+  .receipt-char.is-scaled .receipt-char-glyph {
     transform: scale(var(--sx, 1), var(--sy, 1));
-    transform-origin: left center;
+    transform-origin: left bottom;
   }
 
   /* Font B scaled */
   .receipt-char.is-font-b.is-scaled {
     width: calc(var(--width-b) * var(--sx, 1));
+    height: calc(var(--height-b) * var(--sy, 1));
     line-height: calc(var(--height-b) * var(--sy, 1));
   }
 

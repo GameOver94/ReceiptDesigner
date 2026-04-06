@@ -5,21 +5,26 @@
     setImagePreviewScale,
     updatePrinterSettings,
   } from '$store/editorStore';
-  import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
   import { printerModels } from '$lib/encoder';
+  import { connectSerial, disconnectSerial, subscribeSerialStatus } from '$lib/printing';
+  import { ALLOWED_PRINTER_COLUMNS, type PrinterSettings } from '$types/index';
   import type { SerialStatus } from '$lib/printing';
-  import type { PrinterSettings } from '$types/index';
 
-  // Paper width presets — const object per coding-style.md §6.3 (no enums)
-  const PAPER_PRESETS = {
-    '58mm': { label: '58 mm', columns: 32 },
-    '80mm': { label: '80 mm', columns: 48 },
-    custom: { label: 'Custom', columns: null },
-  } as const;
+  type AllowedPrinterColumn = (typeof ALLOWED_PRINTER_COLUMNS)[number];
 
-  type PresetKey = keyof typeof PAPER_PRESETS;
+  const COLUMN_PRESET_LABELS: Record<AllowedPrinterColumn, string> = {
+    32: '58 mm (32 cols)',
+    35: '58 mm (35 cols)',
+    42: '80 mm (42 cols)',
+    44: '80 mm (44 cols)',
+    48: '80 mm (48 cols)',
+  };
 
-  const PRESET_KEYS = Object.keys(PAPER_PRESETS) as PresetKey[];
+  const COLUMN_PRESETS: { value: AllowedPrinterColumn; label: string }[] =
+    ALLOWED_PRINTER_COLUMNS.map((value) => ({
+      value,
+      label: COLUMN_PRESET_LABELS[value],
+    }));
 
   // Printer command languages supported by @point-of-sale/receipt-printer-encoder
   const LANGUAGES: { value: PrinterSettings['language']; label: string }[] = [
@@ -43,22 +48,14 @@
     'zjiang',
   ] as const;
 
-  // Determine the currently selected preset from columns value.
-  let selectedPreset: PresetKey = $derived(
-    $printerSettings.columns === 32 ? '58mm' : $printerSettings.columns === 48 ? '80mm' : 'custom',
-  );
-
-  function handlePresetChange(preset: PresetKey): void {
-    const presetValue = PAPER_PRESETS[preset];
-    if (presetValue.columns !== null) {
-      updatePrinterSettings({ columns: presetValue.columns });
-    }
+  function isAllowedPrinterColumn(value: number): value is AllowedPrinterColumn {
+    return (ALLOWED_PRINTER_COLUMNS as readonly number[]).includes(value);
   }
 
   function handleColumnsChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const value = parseInt(input.value, 10);
-    if (!isNaN(value) && value >= 24 && value <= 96) {
+    const select = event.target as HTMLSelectElement;
+    const value = parseInt(select.value, 10);
+    if (!Number.isNaN(value) && isAllowedPrinterColumn(value)) {
       updatePrinterSettings({ columns: value });
     }
   }
@@ -177,37 +174,28 @@
       {/if}
     </div>
 
-    <!-- Paper width presets -->
+    <!-- Paper width / columns -->
     <div class="setting-group">
-      <span class="group-label" id="paper-width-group-label">Paper Width</span>
-      <div class="preset-buttons" role="group" aria-labelledby="paper-width-group-label">
-        {#each PRESET_KEYS as key}
-          <button
-            class="preset-btn"
-            class:is-active={selectedPreset === key}
-            onclick={() => handlePresetChange(key)}
-            aria-pressed={selectedPreset === key}
-          >
-            {PAPER_PRESETS[key].label}
-          </button>
-        {/each}
-      </div>
-    </div>
-
-    <!-- Columns -->
-    <div class="setting-group">
-      <label class="setting-label" for="columns-input"> Columns </label>
-      <input
+      <label class="setting-label" for="columns-input">Paper Width / Columns</label>
+      <select
         id="columns-input"
-        type="number"
-        class="setting-input"
-        min="24"
-        max="96"
+        class="setting-select"
         value={$printerSettings.columns}
         onchange={handleColumnsChange}
         aria-describedby="columns-hint"
-      />
-      <span id="columns-hint" class="setting-hint">Characters per line (24–96)</span>
+      >
+        {#if !isAllowedPrinterColumn($printerSettings.columns)}
+          <option value={$printerSettings.columns} disabled>
+            Custom ({$printerSettings.columns} cols)
+          </option>
+        {/if}
+        {#each COLUMN_PRESETS as preset}
+          <option value={preset.value}>{preset.label}</option>
+        {/each}
+      </select>
+      <span id="columns-hint" class="setting-hint"
+        >Pick the option that matches your paper and printer model.</span
+      >
     </div>
 
     <!-- Command language -->
@@ -315,18 +303,20 @@
       >
 
       <label class="setting-label" for="image-preview-scale-input">Image Preview Scale</label>
-      <input
-        id="image-preview-scale-input"
-        type="number"
-        class="setting-input"
-        min="50"
-        max="150"
-        step="1"
-        value={Math.round($imagePreviewScale * 100)}
-        onchange={handleImagePreviewScaleChange}
-        aria-describedby="image-preview-scale-hint"
-      />
-      <span class="setting-suffix" aria-hidden="true">%</span>
+      <div class="setting-input-with-suffix">
+        <input
+          id="image-preview-scale-input"
+          type="number"
+          class="setting-input"
+          min="50"
+          max="150"
+          step="1"
+          value={Math.round($imagePreviewScale * 100)}
+          onchange={handleImagePreviewScaleChange}
+          aria-describedby="image-preview-scale-hint"
+        />
+        <span class="setting-suffix" aria-hidden="true">%</span>
+      </div>
       <span id="image-preview-scale-hint" class="setting-hint"
         >Preview only. Default is 67%. Lower values shrink previewed images.</span
       >
@@ -412,40 +402,19 @@
     color: var(--rd-color-text-muted);
   }
 
-  .setting-suffix {
-    font-size: var(--rd-font-sm);
-    color: var(--rd-color-text-secondary);
-  }
-
-  .preset-buttons {
+  .setting-input-with-suffix {
     display: flex;
+    align-items: center;
     gap: var(--rd-space-2);
   }
 
-  .preset-btn {
+  .setting-input-with-suffix .setting-input {
     flex: 1;
-    padding: var(--rd-space-2);
-    border: 1px solid var(--rd-color-border);
-    border-radius: var(--rd-radius-sm);
-    background-color: var(--rd-color-bg-primary);
-    color: var(--rd-color-text-secondary);
+  }
+
+  .setting-suffix {
     font-size: var(--rd-font-sm);
-    cursor: pointer;
-    transition:
-      background-color var(--rd-transition-fast),
-      color var(--rd-transition-fast),
-      border-color var(--rd-transition-fast);
-  }
-
-  .preset-btn.is-active {
-    background-color: var(--rd-color-accent-light);
-    color: var(--rd-color-accent);
-    border-color: var(--rd-color-accent);
-    font-weight: var(--rd-font-weight-medium);
-  }
-
-  .preset-btn:hover:not(.is-active) {
-    background-color: var(--rd-color-bg-tertiary);
+    color: var(--rd-color-text-secondary);
   }
 
   /* ── Printer connection ─────────────────────────────────────────────── */
