@@ -93,7 +93,7 @@ export interface PlaceholderMeta {
  * See: https://github.com/NielsLeenheer/ReceiptPrinterEncoder/blob/main/documentation/configuration.md
  */
 export interface PrinterSettings {
-  /** Columns / characters per line (24–96). Maps to encoder `columns` option. */
+  /** Columns / characters per line. Restricted to encoder-supported defaults. */
   columns: number;
   /**
    * Printer command language. Maps to encoder `language` option.
@@ -133,6 +133,13 @@ export interface PrinterSettings {
    */
   imageMode: 'column' | 'raster';
 }
+
+/**
+ * Supported character widths from ReceiptPrinterEncoder docs for 57 mm / 80 mm paper.
+ * See configuration.md "Paper width":
+ * 57 mm -> 32 or 35 columns; 80 mm -> 42, 44, or 48 columns.
+ */
+export const ALLOWED_PRINTER_COLUMNS = [32, 35, 42, 44, 48] as const;
 
 /**
  * Default printer settings used when creating a new document or resetting the editor.
