@@ -768,7 +768,7 @@
     list-style: none;
     padding: var(--rd-space-1) 0;
     min-width: 160px;
-    z-index: var(--rd-z-dropdown);
+    z-index: calc(var(--rd-z-dropdown) + 1);
   }
 
   .kebab-menu-item {
@@ -787,7 +787,7 @@
   }
 
   .kebab-menu-item:hover {
-    background-color: var(--rd-color-bg-secondary);
+    background-color: var(--rd-color-bg-tertiary);
   }
 
   .kebab-menu-item--danger {

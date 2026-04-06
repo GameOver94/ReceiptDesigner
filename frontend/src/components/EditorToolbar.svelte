@@ -58,6 +58,8 @@
 
   let { view } = $props<{ view: EditorView | null }>();
   let hoveredCommand = $state<string | null>(null);
+  let hoverMenuTop = $state<number | null>(null);
+  let hoverMenuLeft = $state<number | null>(null);
   let closeMenuTimer: ReturnType<typeof setTimeout> | null = null;
   let showImageBase64Modal = $state(false);
 
@@ -85,11 +87,18 @@
     handleInsert(command.snippet);
   }
 
-  function handleHoverStart(commandId: string): void {
+  function handleHoverStart(commandId: string, target?: EventTarget | null): void {
     if (closeMenuTimer !== null) {
       clearTimeout(closeMenuTimer);
       closeMenuTimer = null;
     }
+
+    if (target instanceof HTMLElement) {
+      const rect = target.getBoundingClientRect();
+      hoverMenuTop = rect.bottom + 4;
+      hoverMenuLeft = rect.left;
+    }
+
     hoveredCommand = commandId;
   }
 
@@ -99,6 +108,8 @@
     closeMenuTimer = setTimeout(() => {
       if (hoveredCommand === commandId) {
         hoveredCommand = null;
+        hoverMenuTop = null;
+        hoverMenuLeft = null;
       }
       closeMenuTimer = null;
     }, 160);
@@ -157,9 +168,9 @@
                 class="toolbar-btn command-btn"
                 onclick={() => handleCommandClick(command)}
                 aria-label={commandAriaLabel(command)}
-                onmouseenter={() => handleHoverStart(command.id)}
+                onmouseenter={(event) => handleHoverStart(command.id, event.currentTarget)}
                 onmouseleave={() => handleHoverEnd(command.id)}
-                onfocus={() => handleHoverStart(command.id)}
+                onfocus={(event) => handleHoverStart(command.id, event.currentTarget)}
                 onblur={() => handleHoverEnd(command.id)}
                 onkeydown={(event) => handleCommandItemKeydown(event, command.id)}
               >
@@ -175,6 +186,8 @@
                   role="dialog"
                   tabindex="-1"
                   aria-label={`${command.label} command details`}
+                  style:top={hoverMenuTop !== null ? `${hoverMenuTop}px` : undefined}
+                  style:left={hoverMenuLeft !== null ? `${hoverMenuLeft}px` : undefined}
                   onmouseenter={() => handleHoverStart(command.id)}
                   onmouseleave={() => handleHoverEnd(command.id)}
                   onfocusin={() => handleHoverStart(command.id)}
@@ -232,6 +245,8 @@
     border-bottom: 1px solid var(--rd-color-border);
     background-color: var(--rd-color-bg-secondary);
     flex-shrink: 0;
+    position: relative;
+    z-index: var(--rd-z-dropdown);
   }
 
   .toolbar-header {
@@ -312,11 +327,9 @@
   }
 
   .hover-menu {
-    position: absolute;
-    left: 0;
-    top: calc(100% + var(--rd-space-1));
+    position: fixed;
     width: 280px;
-    z-index: var(--rd-z-dropdown);
+    z-index: calc(var(--rd-z-dropdown) + 2);
     display: flex;
     flex-direction: column;
     gap: var(--rd-space-2);
@@ -344,6 +357,7 @@
     background: var(--rd-color-bg-tertiary);
     border-radius: var(--rd-radius-sm);
     padding: var(--rd-space-px) var(--rd-space-1);
+    white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
 
